@@ -40,6 +40,7 @@ public class Lwjgl3ifyEventLoop {
         MainThreadExec.runOnMainThread(Lwjgl3ifyEventLoop::internalPumpEvents);
     }
 
+    public static final SDL_Event.Buffer eventPeepArray = SDL_Event.calloc(100);
     public static final SDL_Event event = SDL_Event.calloc();
     public static final SDL_WindowEvent windowEvent = event.window();
     public static final SDL_KeyboardEvent keyEvent = event.key();
@@ -52,54 +53,60 @@ public class Lwjgl3ifyEventLoop {
         if (!SDL_IsMainThread()) {
             throw new IllegalStateException("SDL Event pump called from a non-main thread " + Thread.currentThread());
         }
-        while (SDL_PollEvent(event)) {
-            if (Display.lwjgl3ify$handleSdlEvent()) {
-                continue;
-            }
-            switch (event.type()) {
-                case SDL_EVENT_MOUSE_MOTION -> {
-                    if (Config.DEBUG_PRINT_MOUSE_EVENTS) {
-                        Lwjgl3ify.LOG.info(
-                            "[DEBUG-MOUSE] Motion ns:{} x:{} y:{} xrel:{} yrel:{}",
-                            mouseMotionEvent.timestamp(),
-                            mouseMotionEvent.x(),
-                            mouseMotionEvent.y(),
-                            mouseMotionEvent.xrel(),
-                            mouseMotionEvent.yrel());
+        SDL_PumpEvents();
+        int peepedEvents = 0;
+        while ((peepedEvents = SDL_PeepEvents(eventPeepArray, SDL_GETEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST)) > 0) {
+            for (int i = 0; i < peepedEvents; i++) {
+                memCopy(eventPeepArray.address(i), event.address(), event.sizeof());
+                if (Display.lwjgl3ify$handleSdlEvent()) {
+                    continue;
+                }
+                switch (event.type()) {
+                    case SDL_EVENT_MOUSE_MOTION -> {
+                        if (Config.DEBUG_PRINT_MOUSE_EVENTS) {
+                            Lwjgl3ify.LOG.info(
+                                "[DEBUG-MOUSE] Motion ns:{} x:{} y:{} xrel:{} yrel:{}",
+                                mouseMotionEvent.timestamp(),
+                                mouseMotionEvent.x(),
+                                mouseMotionEvent.y(),
+                                mouseMotionEvent.xrel(),
+                                mouseMotionEvent.yrel());
+                        }
+                        Mouse.addMoveEvent(mouseMotionEvent);
                     }
-                    Mouse.addMoveEvent(mouseMotionEvent);
-                }
-                case SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP -> {
-                    if (Config.DEBUG_PRINT_MOUSE_EVENTS) {
-                        Lwjgl3ify.LOG.info(
-                            "[DEBUG-MOUSE] Press ns:{} button:{} press:{} clicks:{} x:{} y:{}",
-                            mouseButtonEvent.timestamp(),
-                            mouseButtonEvent.button(),
-                            mouseButtonEvent.down(),
-                            mouseButtonEvent.clicks(),
-                            mouseButtonEvent.x(),
-                            mouseButtonEvent.y());
+                    case SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP -> {
+                        if (Config.DEBUG_PRINT_MOUSE_EVENTS) {
+                            Lwjgl3ify.LOG.info(
+                                "[DEBUG-MOUSE] Press ns:{} button:{} press:{} clicks:{} x:{} y:{}",
+                                mouseButtonEvent.timestamp(),
+                                mouseButtonEvent.button(),
+                                mouseButtonEvent.down(),
+                                mouseButtonEvent.clicks(),
+                                mouseButtonEvent.x(),
+                                mouseButtonEvent.y());
+                        }
+                        Mouse.addButtonEvent(
+                            Mouse.sdlToLwjglMouseButton(mouseButtonEvent.button()),
+                            event.type() == SDL_EVENT_MOUSE_BUTTON_DOWN);
                     }
-                    Mouse.addButtonEvent(
-                        Mouse.sdlToLwjglMouseButton(mouseButtonEvent.button()),
-                        event.type() == SDL_EVENT_MOUSE_BUTTON_DOWN);
+                    case SDL_EVENT_MOUSE_WHEEL -> {
+                        float xoffset = mouseWheelEvent.x();
+                        float yoffset = mouseWheelEvent.y();
+                        Mouse
+                            .addWheelEvent(yoffset == 0 ? (Config.INPUT_INVERT_X_WHEEL ? -xoffset : xoffset) : yoffset);
+                    }
+                    case SDL_EVENT_KEYMAP_CHANGED -> {
+                        Lwjgl3ify.LOG.info("System keyboard layout changed, reloading key names");
+                        Keyboard.populateKeyLookupTables();
+                    }
+                    case SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP -> {
+                        handleKeyEvent();
+                    }
+                    case SDL_EVENT_TEXT_INPUT -> {
+                        handleTextEvent();
+                    }
+                    default -> {}
                 }
-                case SDL_EVENT_MOUSE_WHEEL -> {
-                    float xoffset = mouseWheelEvent.x();
-                    float yoffset = mouseWheelEvent.y();
-                    Mouse.addWheelEvent(yoffset == 0 ? (Config.INPUT_INVERT_X_WHEEL ? -xoffset : xoffset) : yoffset);
-                }
-                case SDL_EVENT_KEYMAP_CHANGED -> {
-                    Lwjgl3ify.LOG.info("System keyboard layout changed, reloading key names");
-                    Keyboard.populateKeyLookupTables();
-                }
-                case SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP -> {
-                    handleKeyEvent();
-                }
-                case SDL_EVENT_TEXT_INPUT -> {
-                    handleTextEvent();
-                }
-                default -> {}
             }
         }
         Mouse.sdlMouseButtonFlags = nSDL_GetMouseState(0, 0);
