@@ -1,14 +1,11 @@
 package org.lwjglx;
 
-import static org.lwjgl.sdl.SDLError.*;
 import static org.lwjgl.sdl.SDLEvents.*;
 import static org.lwjgl.sdl.SDLInit.*;
 import static org.lwjgl.sdl.SDLKeyboard.*;
 import static org.lwjgl.sdl.SDLKeycode.*;
 import static org.lwjgl.sdl.SDLMouse.*;
-import static org.lwjgl.sdl.SDLPixels.*;
 import static org.lwjgl.sdl.SDLVideo.*;
-import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
 import org.lwjgl.sdl.SDL_Event;
@@ -49,10 +46,13 @@ public class Lwjgl3ifyEventLoop {
     public static final SDL_MouseButtonEvent mouseButtonEvent = event.button();
     public static final SDL_MouseWheelEvent mouseWheelEvent = event.wheel();
 
+    public static final boolean isMouseWheelBugged = "x11".equals(SDL_GetCurrentVideoDriver());
+
     private static void internalPumpEvents() {
         if (!SDL_IsMainThread()) {
             throw new IllegalStateException("SDL Event pump called from a non-main thread " + Thread.currentThread());
         }
+        int lastWheelID = -1;
         SDL_PumpEvents();
         int peepedEvents = 0;
         while ((peepedEvents = SDL_PeepEvents(eventPeepArray, SDL_GETEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST)) > 0) {
@@ -90,8 +90,18 @@ public class Lwjgl3ifyEventLoop {
                             event.type() == SDL_EVENT_MOUSE_BUTTON_DOWN);
                     }
                     case SDL_EVENT_MOUSE_WHEEL -> {
+                        // duplicate scroll wheel inputs under certain circumstances, ignored when device ID mismatch
+                        if (isMouseWheelBugged) {
+                            if (lastWheelID != -1 && lastWheelID != mouseWheelEvent.which()) {
+                                lastWheelID = -1;
+                                continue;
+                            }
+                            lastWheelID = mouseWheelEvent.which();
+                        }
+
                         float xoffset = mouseWheelEvent.x();
                         float yoffset = mouseWheelEvent.y();
+
                         Mouse
                             .addWheelEvent(yoffset == 0 ? (Config.INPUT_INVERT_X_WHEEL ? -xoffset : xoffset) : yoffset);
                     }
