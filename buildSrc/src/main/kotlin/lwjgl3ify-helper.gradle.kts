@@ -74,13 +74,15 @@ private val hostNativePlatform = nativesByName[hostNativeClassifier]!!;
 private val lwjgl3Bindings = listOf(
     LwjglBinding(""),
     LwjglBinding("freetype"),
-    LwjglBinding("harfbuzz", false),
+    LwjglBinding("harfbuzz", hasNatives = false),
     LwjglBinding("jemalloc"),
     LwjglBinding("nuklear"),
     LwjglBinding("openal"),
     LwjglBinding("opengl"),
     LwjglBinding("sdl"),
+    LwjglBinding("shaderc"),
     LwjglBinding("spng"),
+    LwjglBinding("spvc"),
     LwjglBinding("stb"),
     LwjglBinding("tinyfd"),
     LwjglBinding("zstd")

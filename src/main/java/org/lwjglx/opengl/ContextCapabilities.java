@@ -1,33 +1,37 @@
 package org.lwjglx.opengl;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GLCapabilities;
+
+import me.eigenraven.lwjgl3ify.api.GLCapabilitiesOverride;
 
 public class ContextCapabilities {
 
-    org.lwjgl.opengl.GLCapabilities cap = org.lwjgl.opengl.GL.getCapabilities();
-
     public ContextCapabilities() {
-
-        Field[] fields = org.lwjgl.opengl.GLCapabilities.class.getFields();
-
-        try {
-            for (Field field : fields) {
-
-                String name = field.getName();
-
-                if (name.startsWith("GL_") || name.startsWith("OpenGL")) {
-
-                    boolean value = field.getBoolean(cap);
-
-                    try {
-                        Field f = this.getClass()
-                            .getField(name);
-                        f.setBoolean(this, value);
-                    } catch (Exception e) {}
-                }
+        final Set<String> enabled;
+        if (Display.isCreated() && Display.hasGLContext()) {
+            final GLCapabilities cap = GL.getCapabilities();
+            enabled = new HashSet<>();
+            for (Field field : GLCapabilities.class.getFields()) {
+                final String name = field.getName();
+                if (!name.startsWith("GL_") && !name.startsWith("OpenGL")) continue;
+                try {
+                    if (field.getBoolean(cap)) enabled.add(name);
+                } catch (IllegalAccessException ignored) {}
             }
-        } catch (Exception e) {
-            System.out.println(e);
+        } else {
+            enabled = GLCapabilitiesOverride.get();
+        }
+
+        for (String name : enabled) {
+            try {
+                getClass().getField(name)
+                    .setBoolean(this, true);
+            } catch (ReflectiveOperationException ignored) {}
         }
     }
 
