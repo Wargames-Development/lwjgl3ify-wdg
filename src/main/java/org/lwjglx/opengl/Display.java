@@ -95,8 +95,6 @@ public class Display {
     private static int displayFramebufferHeight = 1;
 
     private static boolean latestResized = false;
-    private static int latestWidth = 0;
-    private static int latestHeight = 0;
     private static boolean cancelNextChar = false;
     private static Keyboard.KeyEvent ingredientKeyEvent;
     private static ByteBuffer[] savedIcons;
@@ -441,8 +439,6 @@ public class Display {
         if (displayFramebufferWidth != width || displayFramebufferHeight != height) {
             displayFramebufferWidth = width;
             displayFramebufferHeight = height;
-            latestWidth = width;
-            latestHeight = height;
             latestResized |= markResize;
         }
     }
@@ -869,8 +865,6 @@ public class Display {
                 if (Lwjgl3ifyEventLoop.windowEvent.windowID() != sdlWindowId) {
                     yield true;
                 }
-                displayWidth = Lwjgl3ifyEventLoop.windowEvent.data1();
-                displayHeight = Lwjgl3ifyEventLoop.windowEvent.data2();
                 updateWindowSizeFromSdl(true);
                 if (Config.DEBUG_PRINT_WINDOW_EVENTS) {
                     Lwjgl3ify.LOG.info(
@@ -893,8 +887,8 @@ public class Display {
                     Lwjgl3ify.LOG.info(
                         "[DEBUG-WINDOW] framebuffer-pixel scale change window:{} w:{} h:{}",
                         Lwjgl3ifyEventLoop.windowEvent.windowID(),
-                        displayFramebufferWidth,
-                        displayFramebufferHeight);
+                        Lwjgl3ifyEventLoop.windowEvent.data1(),
+                        Lwjgl3ifyEventLoop.windowEvent.data2());
                 }
                 yield true;
             }
