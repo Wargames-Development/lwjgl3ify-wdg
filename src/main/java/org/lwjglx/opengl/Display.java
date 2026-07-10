@@ -313,18 +313,7 @@ public class Display {
             displayFocused = (actualWindowFlags & SDL_WINDOW_INPUT_FOCUS) != 0;
             displayVisible = (actualWindowFlags & SDL_WINDOW_MINIMIZED) == 0;
 
-            try (MemoryStack stack = stackPush()) {
-                IntBuffer w = stack.ints(0);
-                IntBuffer h = stack.ints(0);
-                SDL_GetWindowSize(sdlWindow, w, h);
-                displayWidth = w.get(0);
-                displayHeight = h.get(0);
-                SDL_GetWindowSizeInPixels(sdlWindow, w, h);
-                displayFramebufferWidth = w.get(0);
-                latestWidth = displayFramebufferWidth;
-                displayFramebufferHeight = h.get(0);
-                latestHeight = displayFramebufferHeight;
-            }
+            updateWindowSizeFromSdl(false);
 
             if (savedIcons != null) {
                 setIcon(savedIcons);
@@ -430,6 +419,32 @@ public class Display {
         Lwjgl3ifyEventLoop.pumpEvents();
         Keyboard.poll();
         Mouse.poll();
+    }
+
+    private static void updateWindowSizeFromSdl(boolean markResize) {
+        try (MemoryStack stack = stackPush()) {
+            IntBuffer w = stack.ints(0);
+            IntBuffer h = stack.ints(0);
+            SDL_GetWindowSize(sdlWindow, w, h);
+            displayWidth = w.get(0);
+            displayHeight = h.get(0);
+            SDL_GetWindowSizeInPixels(sdlWindow, w, h);
+            updateFramebufferSize(w.get(0), h.get(0), markResize);
+        }
+    }
+
+    private static void updateFramebufferSize(int width, int height, boolean markResize) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        if (displayFramebufferWidth != width || displayFramebufferHeight != height) {
+            displayFramebufferWidth = width;
+            displayFramebufferHeight = height;
+            latestWidth = width;
+            latestHeight = height;
+            latestResized |= markResize;
+        }
     }
 
     public static void swapBuffers() {
@@ -805,6 +820,7 @@ public class Display {
                 if (Lwjgl3ifyEventLoop.windowEvent.windowID() != sdlWindowId) {
                     yield true;
                 }
+                updateWindowSizeFromSdl(true);
                 displayDirty = true;
                 yield true;
             }
@@ -842,6 +858,7 @@ public class Display {
                 if (Lwjgl3ifyEventLoop.windowEvent.windowID() != sdlWindowId) {
                     yield true;
                 }
+                updateWindowSizeFromSdl(true);
                 displayVisible = true;
                 if (Config.DEBUG_PRINT_WINDOW_EVENTS) {
                     Lwjgl3ify.LOG.info("[DEBUG-WINDOW] window-restore");
@@ -854,6 +871,7 @@ public class Display {
                 }
                 displayWidth = Lwjgl3ifyEventLoop.windowEvent.data1();
                 displayHeight = Lwjgl3ifyEventLoop.windowEvent.data2();
+                updateWindowSizeFromSdl(true);
                 if (Config.DEBUG_PRINT_WINDOW_EVENTS) {
                     Lwjgl3ify.LOG.info(
                         "[DEBUG-WINDOW] window-resize window:{} w:{} h:{}",
@@ -867,8 +885,10 @@ public class Display {
                 if (Lwjgl3ifyEventLoop.windowEvent.windowID() != sdlWindowId) {
                     yield true;
                 }
-                displayFramebufferWidth = Lwjgl3ifyEventLoop.windowEvent.data1();
-                displayFramebufferHeight = Lwjgl3ifyEventLoop.windowEvent.data2();
+                updateFramebufferSize(
+                    Lwjgl3ifyEventLoop.windowEvent.data1(),
+                    Lwjgl3ifyEventLoop.windowEvent.data2(),
+                    true);
                 if (Config.DEBUG_PRINT_WINDOW_EVENTS) {
                     Lwjgl3ify.LOG.info(
                         "[DEBUG-WINDOW] framebuffer-pixel scale change window:{} w:{} h:{}",
@@ -876,9 +896,6 @@ public class Display {
                         displayFramebufferWidth,
                         displayFramebufferHeight);
                 }
-                latestResized = true;
-                latestWidth = displayFramebufferWidth;
-                latestHeight = displayFramebufferHeight;
                 yield true;
             }
             case SDL_EVENT_WINDOW_MOVED -> {
