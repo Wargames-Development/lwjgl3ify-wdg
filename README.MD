@@ -1,7 +1,14 @@
-# LWJGL3ify
+# LWJGL3ify — WDG Edition
 
-Brings LWJGL3 and modern Java versions to Minecraft 1.7.10.
-Bundles [RetroFuturaBootstrap](https://github.com/GTNewHorizons/RetroFuturaBootstrap) as a flexible early load plugin system.
+LWJGL3ify brings LWJGL 3 and modern Java versions to Minecraft 1.7.10. It bundles [RetroFuturaBootstrap](https://github.com/GTNewHorizons/RetroFuturaBootstrap) as a flexible early-load plugin system.
+
+This repository is the [Wargames Development Group fork](https://github.com/Wargames-Development/lwjgl3ify-wdg) of the [GT New Horizons upstream project](https://github.com/GTNewHorizons/lwjgl3ify). The Change 001 baseline follows upstream lwjgl3ify **3.0.28** (`ed6f8e3`) and retains the upstream authorship, licence, compatibility identities, launcher metadata structure, and public APIs. The binary mod ID and Java package remain `lwjgl3ify` and `me.eigenraven.lwjgl3ify`; only the repository/documentation identity is “WDG Edition”.
+
+Minecraft may initially be launched under Java 8 when using the existing experimental relauncher, which then transfers execution to a supported modern Java runtime. That legacy initial process does **not** make this source repository an all-Java-8 build: Gradle, special source sets, and development run tasks use separate modern JVM/toolchain roles.
+
+Packaged Java 21 installation/selection and DistantHorizons-WDG integration are planned later. They are **not implemented by Change 001**. Existing upstream relauncher and launcher behavior is unchanged.
+
+Supported game baseline: **Minecraft 1.7.10** with **Forge 10.13.4.1614**. Developers should read [SETUP.md](SETUP.md) before importing the project and [COMPILING.md](COMPILING.md) for validation, distribution, run-task, and clean source-package commands.
 
 # Usage
 
@@ -170,7 +177,6 @@ This can lead to inconsistent states, where some methods might see the old value
 
 ### Development
 
-First, do `./gradlew build` and use the zip in `./build/distributions/lwjgl3ify-VERSION-multimc.zip` to install lwjgl3ify into a 1.7.10 forge instance in Prism.
-Install the mod jar from `./build/libs/` as usual.
+Use the checked-in Gradle 9.3.1 wrapper and the repository's declared JVM/toolchain roles. Full IntelliJ and platform setup is in [SETUP.md](SETUP.md); supported validation, artifact, distribution, development-run, and source-package commands are in [COMPILING.md](COMPILING.md).
 
-When testing in the deobfuscated environment, please use the `runClient`/`runServer` tasks that run with modern java by default. `runClient17` et al. are no-ops.
+The normal `runClient`/`runServer` tasks use the configured modern Java launcher. The generated version-suffixed run variants are intentionally disabled. Use `runClientWithRelauncher` only when specifically testing the existing legacy-start/relauncher path.

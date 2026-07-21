@@ -4,9 +4,8 @@ import com.gtnewhorizons.retrofuturagradle.util.Distribution
 import com.gtnewhorizons.retrofuturagradle.util.ProviderToStringWrapper
 import com.modrinth.minotaur.ModrinthExtension
 import de.undercouch.gradle.tasks.download.Download
-import org.apache.tools.ant.filters.ReplaceTokens
-import org.eclipse.jgit.util.sha1.SHA1
-import java.nio.charset.StandardCharsets
+import me.eigenraven.lwjgl3ify.gradle.VerifyRepositoryTask
+import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -18,6 +17,14 @@ plugins {
 }
 
 val taskGroup = "lwjgl3ify"
+
+val verifyRepository = tasks.register<VerifyRepositoryTask>("verifyRepository") {
+    repositoryDirectory.set(layout.projectDirectory)
+}
+
+tasks.named("check") {
+    dependsOn(verifyRepository)
+}
 
 val newJavaToolchainSpec: JavaToolchainSpec.() -> Unit = {
     vendor = JvmVendorSpec.AZUL
@@ -242,72 +249,24 @@ val mmcInstanceFilesZip = tasks.register<MmcZip>("mmcInstanceFiles") {
     }
 }
 
-val versionJsonPath = layout.buildDirectory.file("libs/version.json").get().asFile
-
-abstract class VersionJsonTask : DefaultTask() {
-    @get:Inject
-    abstract val fs: FileSystemOperations
-    @get:InputFile
-    abstract val lwjgl3Json: RegularFileProperty
-}
+val versionJsonPath = layout.buildDirectory.file("libs/version.json")
 
 val gitLastCommitDate = providers.exec {
     commandLine("git", "log", "-1", "--format=%aI", "HEAD")
-}.standardOutput.asText.get().trim()
+    isIgnoreExitValue = true
+}.standardOutput.asText.get().trim().ifEmpty { "1970-01-01T00:00:00Z" }
 
 val versionJsonFile = tasks.register<VersionJsonTask>("versionJson") {
-    group = taskGroup
-    description = "Generates the vanilla launcher version.json file"
     dependsOn(tasks.makeLwjgl3Json)
     dependsOn(forgePatchesJar)
-    val theForgePatchesJar = forgePatchesJar.map { it.outputs.files.first() }
-    inputs.file("launcher-metadata/version.json")
-    inputs.file(theForgePatchesJar)
-    inputs.property("version", project.version)
-    inputs.property("jvmArgs", extraJavaArgs)
-    outputs.file(versionJsonPath)
-    lwjgl3Json = tasks.makeLwjgl3Json.flatMap { it.outputFile }
-    val projVersion = project.version.toString()
-    val jvmArgs = extraJavaArgs.joinToString(", ") { '"' + it + '"' }
-    val versionJsonPathLocal = versionJsonPath
-    val lwjglVersion = libs.versions.lwjgl.get()
-    val lwjglDownloadsFile = lwjgl3Json.asFile.get()
-    val gitLastCommitDateStr = gitLastCommitDate
-    doLast {
-        versionJsonPathLocal.parentFile.mkdirs()
-
-        val patchesJar = theForgePatchesJar.get()
-        val (patchesJarHash, patchesJarSize) = patchesJar.inputStream().use { input ->
-            val hash = SHA1.newInstance()
-            var buf = ByteArray(4096)
-            var totalSize = 0
-            while (true) {
-                val read = input.read(buf)
-                if (read < 0) {
-                    break
-                }
-                totalSize += read
-                hash.update(buf, 0, read)
-            }
-            hash.digest().toHexString() to totalSize
-        }
-        val lwjglDownloads = lwjglDownloadsFile.readText(Charsets.UTF_8)
-        fs.copy {
-            from("launcher-metadata/version.json")
-            into(versionJsonPathLocal.parentFile)
-            filter(
-                ReplaceTokens::class, "tokens" to mapOf(
-                    "version" to projVersion,
-                    "patchesJarSize" to patchesJarSize.toString(),
-                    "patchesJarHash" to patchesJarHash,
-                    "jvmArgs" to jvmArgs,
-                    "lwjglVersion" to lwjglVersion,
-                    "lwjglDownloads" to lwjglDownloads,
-                    "time" to gitLastCommitDateStr
-                )
-            )
-        }
-    }
+    templateFile.set(layout.projectDirectory.file("launcher-metadata/version.json"))
+    forgePatchesArchive.set(forgePatchesJar.flatMap { it.archiveFile })
+    lwjglDownloadsFile.set(tasks.makeLwjgl3Json.flatMap { it.outputFile })
+    versionString.set(project.version.toString())
+    jvmArgumentsJson.set(extraJavaArgs.joinToString(", ") { '"' + it + '"' })
+    lwjglVersionString.set(libs.versions.lwjgl)
+    commitTime.set(gitLastCommitDate)
+    outputFile.set(versionJsonPath)
 }
 
 tasks.shadowJar {
@@ -441,7 +400,7 @@ tasks.runObfServer {
     tweakClasses.set(listOf())
 }
 
-// Regular runClient/runServer tasks run in Java 17 in this project.
+// Regular runClient/runServer tasks use the explicit Azul Java 21 launcher above.
 tasks.runClient17 { enabled = false }
 tasks.runClient21 { enabled = false }
 tasks.runClient25 { enabled = false }

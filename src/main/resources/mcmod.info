@@ -6,7 +6,7 @@
 		"description": "A mod enabling the use of LWJGL3 and modern Java versions for Minecraft 1.7.10",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/GTNewHorizons/lwjgl3ify",
+		"url": "https://github.com/Wargames-Development/lwjgl3ify-wdg",
 		"updateUrl": "",
 		"authorList": ["eigenraven"],
 		"credits": "",
