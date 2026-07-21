@@ -63,7 +63,15 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "settings.gradle.kts",
             "build.gradle.kts",
             "buildSrc/build.gradle.kts",
+            "buildSrc/gradle/gradle-daemon-jvm.properties",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeManifest.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeBundleSupport.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeBundleTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageJavaRuntimeBundleTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRepositoryTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VersionJsonTask.kt",
+            "buildSrc/src/test/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeContractTest.kt",
+            "docs/BUNDLED_JAVA.md",
             "gradle.properties",
             "dependencies.gradle",
             "repositories.gradle",
@@ -86,6 +94,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/resources/mixins.lwjgl3ify.json",
             "src/main/resources/mixins.lwjgl3ify.early.json",
             "src/main/resources/mixins.lwjgl3ify.late.json",
+            "src/main/resources/me/eigenraven/lwjgl3ify/relauncher/runtime/java21-runtime-manifest.json",
             "src/forgePatches/ScriptEngineServices.txt",
             "src/forgePatches/lwjgl3ify-forgePatches-version.txt",
             "src/main/java/me/eigenraven/lwjgl3ify/core/Lwjgl3ifyCoremod.java",
@@ -96,11 +105,22 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java",
             "src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelauncherStubMain.java",
             "scripts/package-source.sh",
+            "scripts/validate-java-runtime-contract.sh",
         )
         requiredFiles.forEach(::requireFile)
 
+        val rootDaemonCriteria = relative("gradle/gradle-daemon-jvm.properties")
+        val buildSrcDaemonCriteria = relative("buildSrc/gradle/gradle-daemon-jvm.properties")
+        if (rootDaemonCriteria.isFile && buildSrcDaemonCriteria.isFile &&
+            !rootDaemonCriteria.readBytes().contentEquals(buildSrcDaemonCriteria.readBytes())
+        ) {
+            failures += "buildSrc daemon JVM criteria must match the root Gradle daemon JVM criteria"
+        }
+
         listOf(
             "buildSrc/src/main/kotlin",
+            "buildSrc/src/test/kotlin",
+            "docs",
             "launcher-metadata",
             "prism-libraries/patches",
             "src/main/resources/assets/lwjgl3ify",
@@ -173,6 +193,8 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             listOf(
                 "compilerOptions.jvmTarget = JvmTarget.JVM_24",
                 "options.release = 24",
+                "org.apache.commons:commons-compress:1.27.1",
+                "testImplementation(kotlin(\"test-junit\"))",
             ),
             "buildSrc JVM boundary",
             failures,
@@ -227,7 +249,14 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "languageVersion = JavaLanguageVersion.of(17)",
                 "languageVersion = JavaLanguageVersion.of(21)",
                 "runClientWithRelauncher",
+                "import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask",
+                "import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask",
+                "tasks.register<VerifyJavaRuntimeBundleTask>(\"verifyJavaRuntimeBundle\")",
+                "tasks.register<PackageJavaRuntimeBundleTask>(\"packageJavaRuntimeBundle\")",
+                "wdgJavaRuntimeBundle",
+                "WDG_JAVA_RUNTIME_BUNDLE",
+                "runtime-packages/lwjgl3ify-wdg-java21-runtimes.zip",
                 "tasks.register<VersionJsonTask>(\"versionJson\")",
                 "forgePatchesArchive.set(forgePatchesJar.flatMap { it.archiveFile })",
                 "outputFile.set(versionJsonPath)",
@@ -289,6 +318,30 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "MultiMC/Prism package metadata",
             failures,
         )
+
+        checkFileContains(
+            relative("scripts/validate-java-runtime-contract.sh"),
+            listOf(
+                "Required Java Packages*.zip",
+                "verifyJavaRuntimeBundle",
+                "packageJavaRuntimeBundle",
+                "scripts/package-source.sh",
+                "Your Terminal remains open",
+            ),
+            "Java runtime contract validation helper",
+            failures,
+        )
+
+        val runtimeManifestFile = relative(
+            "src/main/resources/me/eigenraven/lwjgl3ify/relauncher/runtime/java21-runtime-manifest.json",
+        )
+        if (runtimeManifestFile.isFile) {
+            try {
+                JavaRuntimeManifestIO.loadAndValidate(runtimeManifestFile)
+            } catch (exception: RuntimeContractException) {
+                failures += exception.message ?: "Canonical Java runtime manifest validation failed"
+            }
+        }
 
         verifyTrackedSourceHygiene(root, failures)
 
@@ -398,6 +451,8 @@ abstract class VerifyRepositoryTask : DefaultTask() {
         val forbiddenSuffixes = listOf(
             ".log",
             ".zip",
+            ".tar.gz",
+            ".tgz",
             ".iml",
             ".ipr",
             ".iws",

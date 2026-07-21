@@ -20,6 +20,8 @@ The release workflow installs Java 8, 17, 21, and the daemon JVM version. Gradle
 
 For the least surprising setup, install an architecture-native JDK 25 and use it for the shell and IntelliJ Gradle JVM. Let Gradle provision the project-specific Azul Java 8, 17, and 21 toolchains.
 
+The separately supplied Eclipse Temurin Java 21 packages are runtime JRE inputs for the bounded bundle contract, not replacements for the development JDKs above. They are not required by ordinary `check` or `build`. Keep the external ZIP outside the repository and use it only with the explicit tasks documented in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md).
+
 ## Platform notes
 
 ### macOS Apple Silicon

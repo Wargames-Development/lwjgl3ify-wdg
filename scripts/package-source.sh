@@ -29,7 +29,7 @@ is_forbidden_path() {
         */.gradle/*|*/build/*|*/run/*|*/eclipse/*|*/.idea/*|*/.vscode/*|*/logs/*|*/crash-reports/*|*/__MACOSX/*)
             return 0
             ;;
-        */.DS_Store|*/Thumbs.db|*/Desktop.ini|*/log.txt|*/.env|*/.env.*|*.log|*.zip|*.iml|*.ipr|*.iws|*.pem|*.key|*.p12|*.tmp|*.temp|*.swp|*.swo|*~)
+        */.DS_Store|*/Thumbs.db|*/Desktop.ini|*/log.txt|*/.env|*/.env.*|*.log|*.zip|*.tar.gz|*.tgz|*.iml|*.ipr|*.iws|*.pem|*.key|*.p12|*.tmp|*.temp|*.swp|*.swo|*~)
             return 0
             ;;
     esac
@@ -75,9 +75,18 @@ required_staged=(
     "README.MD"
     "SETUP.md"
     "COMPILING.md"
+    "buildSrc/gradle/gradle-daemon-jvm.properties"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeManifest.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeBundleSupport.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeBundleTask.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageJavaRuntimeBundleTask.kt"
     "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRepositoryTask.kt"
     "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VersionJsonTask.kt"
+    "buildSrc/src/test/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeContractTest.kt"
+    "src/main/resources/me/eigenraven/lwjgl3ify/relauncher/runtime/java21-runtime-manifest.json"
+    "docs/BUNDLED_JAVA.md"
     "scripts/package-source.sh"
+    "scripts/validate-java-runtime-contract.sh"
 )
 for required in "${required_staged[@]}"; do
     [[ -f "$DEST/$required" ]] || { echo "ERROR: Required staged file is missing: $required" >&2; exit 1; }
@@ -105,7 +114,7 @@ if grep -Ev "^${TOP_LEVEL}/" "$LISTING" | grep -q .; then
     exit 1
 fi
 
-forbidden_listing_regex='(^|/)(\.git|\.gradle|build|run|eclipse|\.idea|\.vscode|out|bin|config|saves|logs|crash-reports|__MACOSX)(/|$)|(^|/)(\.DS_Store|Thumbs\.db|Desktop\.ini|log\.txt|\.env(\..*)?)$|\.(log|zip|iml|ipr|iws|pem|key|p12|tmp|temp|swp|swo)$|~$'
+forbidden_listing_regex='(^|/)(\.git|\.gradle|build|run|eclipse|\.idea|\.vscode|out|bin|config|saves|logs|crash-reports|__MACOSX)(/|$)|(^|/)(\.DS_Store|Thumbs\.db|Desktop\.ini|log\.txt|\.env(\..*)?)$|\.(log|zip|tar\.gz|tgz|iml|ipr|iws|pem|key|p12|tmp|temp|swp|swo)$|~$'
 if grep -E "$forbidden_listing_regex" "$LISTING" >/dev/null; then
     echo "ERROR: Archive contains forbidden paths:" >&2
     grep -E "$forbidden_listing_regex" "$LISTING" >&2

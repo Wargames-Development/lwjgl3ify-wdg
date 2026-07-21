@@ -4,8 +4,11 @@ import com.gtnewhorizons.retrofuturagradle.util.Distribution
 import com.gtnewhorizons.retrofuturagradle.util.ProviderToStringWrapper
 import com.modrinth.minotaur.ModrinthExtension
 import de.undercouch.gradle.tasks.download.Download
+import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyRepositoryTask
 import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask
+import java.io.File
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -24,6 +27,31 @@ val verifyRepository = tasks.register<VerifyRepositoryTask>("verifyRepository") 
 
 tasks.named("check") {
     dependsOn(verifyRepository)
+}
+
+val javaRuntimeManifestFile = layout.projectDirectory.file(
+    "src/main/resources/me/eigenraven/lwjgl3ify/relauncher/runtime/java21-runtime-manifest.json",
+)
+val javaRuntimeBundlePath = providers.gradleProperty("wdgJavaRuntimeBundle")
+    .orElse(providers.environmentVariable("WDG_JAVA_RUNTIME_BUNDLE"))
+val javaRuntimeBundleFile = layout.file(
+    javaRuntimeBundlePath.map { configuredPath -> File(configuredPath) },
+)
+
+val verifyJavaRuntimeBundle = tasks.register<VerifyJavaRuntimeBundleTask>("verifyJavaRuntimeBundle") {
+    manifestFile.set(javaRuntimeManifestFile)
+    bundleFile.set(javaRuntimeBundleFile)
+}
+
+tasks.register<PackageJavaRuntimeBundleTask>("packageJavaRuntimeBundle") {
+    dependsOn(verifyJavaRuntimeBundle)
+    manifestFile.set(javaRuntimeManifestFile)
+    bundleFile.set(javaRuntimeBundleFile)
+    outputFile.set(
+        layout.buildDirectory.file(
+            "runtime-packages/lwjgl3ify-wdg-java21-runtimes.zip",
+        ),
+    )
 }
 
 val newJavaToolchainSpec: JavaToolchainSpec.() -> Unit = {

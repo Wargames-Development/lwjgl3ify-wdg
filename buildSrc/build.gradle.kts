@@ -19,4 +19,6 @@ tasks.compileJava.configure {
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    testImplementation(kotlin("test-junit"))
 }

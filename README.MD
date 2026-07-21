@@ -2,11 +2,11 @@
 
 LWJGL3ify brings LWJGL 3 and modern Java versions to Minecraft 1.7.10. It bundles [RetroFuturaBootstrap](https://github.com/GTNewHorizons/RetroFuturaBootstrap) as a flexible early-load plugin system.
 
-This repository is the [Wargames Development Group fork](https://github.com/Wargames-Development/lwjgl3ify-wdg) of the [GT New Horizons upstream project](https://github.com/GTNewHorizons/lwjgl3ify). The Change 001 baseline follows upstream lwjgl3ify **3.0.28** (`ed6f8e3`) and retains the upstream authorship, licence, compatibility identities, launcher metadata structure, and public APIs. The binary mod ID and Java package remain `lwjgl3ify` and `me.eigenraven.lwjgl3ify`; only the repository/documentation identity is “WDG Edition”.
+This repository is the [Wargames Development Group fork](https://github.com/Wargames-Development/lwjgl3ify-wdg) of the [GT New Horizons upstream project](https://github.com/GTNewHorizons/lwjgl3ify). The WDG foundation follows upstream lwjgl3ify **3.0.28** (`ed6f8e3`) and retains the upstream authorship, licence, compatibility identities, launcher metadata structure, and public APIs. The binary mod ID and Java package remain `lwjgl3ify` and `me.eigenraven.lwjgl3ify`; only the repository/documentation identity is “WDG Edition”.
 
 Minecraft may initially be launched under Java 8 when using the existing experimental relauncher, which then transfers execution to a supported modern Java runtime. That legacy initial process does **not** make this source repository an all-Java-8 build: Gradle, special source sets, and development run tasks use separate modern JVM/toolchain roles.
 
-Packaged Java 21 installation/selection and DistantHorizons-WDG integration are planned later. They are **not implemented by Change 001**. Existing upstream relauncher and launcher behavior is unchanged.
+The repository now contains a deterministic Eclipse Temurin Java 21 JRE manifest plus static validation and normalized bundle-packaging tasks for Linux, macOS, and Windows on `x86_64` and `aarch64`. See [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md). Automatic packaged-runtime extraction, installation, host selection, relaunch changes, and DistantHorizons-WDG integration remain deferred; existing production relauncher behavior is unchanged.
 
 Supported game baseline: **Minecraft 1.7.10** with **Forge 10.13.4.1614**. Developers should read [SETUP.md](SETUP.md) before importing the project and [COMPILING.md](COMPILING.md) for validation, distribution, run-task, and clean source-package commands.
 

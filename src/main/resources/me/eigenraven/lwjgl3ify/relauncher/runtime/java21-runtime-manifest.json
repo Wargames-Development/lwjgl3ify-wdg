@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "runtimeFamily": "java21-jre",
+  "vendor": "Eclipse Adoptium",
+  "implementor": "Eclipse Adoptium",
+  "distribution": "Temurin",
+  "implementorVersion": "Temurin-21.0.11+10",
+  "javaFeatureVersion": 21,
+  "javaVersion": "21.0.11",
+  "javaRuntimeVersion": "21.0.11+10-LTS",
+  "jvmVariant": "Hotspot",
+  "archiveRoot": "jdk-21.0.11+10-jre",
+  "supportedPlatformCount": 6,
+  "platforms": [
+    {
+      "id": "linux-aarch64",
+      "operatingSystem": "linux",
+      "architecture": "aarch64",
+      "operatingSystemAliases": [
+        "Linux",
+        "linux"
+      ],
+      "architectureAliases": [
+        "aarch64",
+        "arm64"
+      ],
+      "inputPath": "Required Java Packages/Linux/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.11_10.tar.gz",
+      "inputFilename": "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.11_10.tar.gz",
+      "normalizedBundlePath": "runtimes/linux-aarch64.tar.gz",
+      "archiveType": "tar.gz",
+      "sizeBytes": 51184429,
+      "sha256": "fa23d9d9945053e67bcc7638410eabf1e17a7672c7c95a24f70cd08b8407d36e",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": ".",
+      "javaExecutableRelativePath": "bin/java",
+      "releaseFileRelativePath": "release",
+      "libc": "gnu",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Linux",
+        "OS_ARCH": "aarch64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "gnu"
+      }
+    },
+    {
+      "id": "linux-x86_64",
+      "operatingSystem": "linux",
+      "architecture": "x86_64",
+      "operatingSystemAliases": [
+        "Linux",
+        "linux"
+      ],
+      "architectureAliases": [
+        "amd64",
+        "x86_64",
+        "x64"
+      ],
+      "inputPath": "Required Java Packages/Linux/OpenJDK21U-jre_x64_linux_hotspot_21.0.11_10.tar.gz",
+      "inputFilename": "OpenJDK21U-jre_x64_linux_hotspot_21.0.11_10.tar.gz",
+      "normalizedBundlePath": "runtimes/linux-x86_64.tar.gz",
+      "archiveType": "tar.gz",
+      "sizeBytes": 52099793,
+      "sha256": "e5038aae3ca9ff670bc696496b0728dbd23d280026bad30291cb919221ecfdcb",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": ".",
+      "javaExecutableRelativePath": "bin/java",
+      "releaseFileRelativePath": "release",
+      "libc": "gnu",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Linux",
+        "OS_ARCH": "x86_64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "gnu"
+      }
+    },
+    {
+      "id": "macos-aarch64",
+      "operatingSystem": "macos",
+      "architecture": "aarch64",
+      "operatingSystemAliases": [
+        "Darwin",
+        "Mac OS X",
+        "macOS"
+      ],
+      "architectureAliases": [
+        "aarch64",
+        "arm64"
+      ],
+      "inputPath": "Required Java Packages/MacOS/OpenJDK21U-jre_aarch64_mac_hotspot_21.0.11_10.tar.gz",
+      "inputFilename": "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.11_10.tar.gz",
+      "normalizedBundlePath": "runtimes/macos-aarch64.tar.gz",
+      "archiveType": "tar.gz",
+      "sizeBytes": 48149317,
+      "sha256": "4b7a8cd23102c251c8b8be42a9a5f1263fb337cf1037f6f64b25f3070efe4b76",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": "Contents/Home",
+      "javaExecutableRelativePath": "bin/java",
+      "releaseFileRelativePath": "release",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Darwin",
+        "OS_ARCH": "aarch64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "default"
+      }
+    },
+    {
+      "id": "macos-x86_64",
+      "operatingSystem": "macos",
+      "architecture": "x86_64",
+      "operatingSystemAliases": [
+        "Darwin",
+        "Mac OS X",
+        "macOS"
+      ],
+      "architectureAliases": [
+        "amd64",
+        "x86_64",
+        "x64"
+      ],
+      "inputPath": "Required Java Packages/MacOS/OpenJDK21U-jre_x64_mac_hotspot_21.0.11_10.tar.gz",
+      "inputFilename": "OpenJDK21U-jre_x64_mac_hotspot_21.0.11_10.tar.gz",
+      "normalizedBundlePath": "runtimes/macos-x86_64.tar.gz",
+      "archiveType": "tar.gz",
+      "sizeBytes": 42129623,
+      "sha256": "b341fb8ed5b70d49066b98176bc98e30f55082192403deb60e0cd5948b6e7923",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": "Contents/Home",
+      "javaExecutableRelativePath": "bin/java",
+      "releaseFileRelativePath": "release",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Darwin",
+        "OS_ARCH": "x86_64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "default"
+      }
+    },
+    {
+      "id": "windows-aarch64",
+      "operatingSystem": "windows",
+      "architecture": "aarch64",
+      "operatingSystemAliases": [
+        "Windows",
+        "Windows 10",
+        "Windows 11"
+      ],
+      "architectureAliases": [
+        "aarch64",
+        "arm64"
+      ],
+      "inputPath": "Required Java Packages/Windows/OpenJDK21U-jre_aarch64_windows_hotspot_21.0.11_10.zip",
+      "inputFilename": "OpenJDK21U-jre_aarch64_windows_hotspot_21.0.11_10.zip",
+      "normalizedBundlePath": "runtimes/windows-aarch64.zip",
+      "archiveType": "zip",
+      "sizeBytes": 40076904,
+      "sha256": "22e2c2b83a7dc5653c938c9a49d87ad52a1faa38f7f3d80a96ceb0795ab99637",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": ".",
+      "javaExecutableRelativePath": "bin/java.exe",
+      "windowsGuiExecutableRelativePath": "bin/javaw.exe",
+      "releaseFileRelativePath": "release",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Windows",
+        "OS_ARCH": "aarch64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "default"
+      }
+    },
+    {
+      "id": "windows-x86_64",
+      "operatingSystem": "windows",
+      "architecture": "x86_64",
+      "operatingSystemAliases": [
+        "Windows",
+        "Windows 10",
+        "Windows 11"
+      ],
+      "architectureAliases": [
+        "amd64",
+        "x86_64",
+        "x64"
+      ],
+      "inputPath": "Required Java Packages/Windows/OpenJDK21U-jre_x64_windows_hotspot_21.0.11_10.zip",
+      "inputFilename": "OpenJDK21U-jre_x64_windows_hotspot_21.0.11_10.zip",
+      "normalizedBundlePath": "runtimes/windows-x86_64.zip",
+      "archiveType": "zip",
+      "sizeBytes": 49005708,
+      "sha256": "be26677aaa20b39a62edcaab4c8857a8b76673b0f45abc0b6143b142b62717e4",
+      "archiveRoot": "jdk-21.0.11+10-jre",
+      "javaHomeRelativePath": ".",
+      "javaExecutableRelativePath": "bin/java.exe",
+      "windowsGuiExecutableRelativePath": "bin/javaw.exe",
+      "releaseFileRelativePath": "release",
+      "expectedReleaseProperties": {
+        "IMPLEMENTOR": "Eclipse Adoptium",
+        "IMPLEMENTOR_VERSION": "Temurin-21.0.11+10",
+        "JAVA_VERSION": "21.0.11",
+        "JAVA_RUNTIME_VERSION": "21.0.11+10-LTS",
+        "OS_NAME": "Windows",
+        "OS_ARCH": "x86_64",
+        "JVM_VARIANT": "Hotspot",
+        "LIBC": "default"
+      }
+    }
+  ]
+}

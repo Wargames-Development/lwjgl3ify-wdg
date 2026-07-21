@@ -38,6 +38,11 @@ layout.json
 /*.log
 /*-patch-*.zip
 /*-source.zip
+/Required Java Packages*.zip
+/lwjgl3ify-wdg-java21-runtimes.zip
+/runtime-packages/
+/*.tar.gz
+/*.tgz
 
 # Local credentials and signing material
 /.env
