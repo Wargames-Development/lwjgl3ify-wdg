@@ -2,9 +2,9 @@
 
 ## Purpose and boundary
 
-The WDG fork is preparing verified packaged Java 21 runtimes so a later bounded change can install and select an architecture-correct runtime without asking the user to manage Java manually.
+The WDG fork is preparing verified packaged Java 21 runtimes so a later bounded change can select and relaunch with an architecture-correct runtime without asking the user to manage Java manually.
 
-Change 002 defines the source-controlled contract, validates the external runtime input bundle, and packages a normalized generated bundle. It does **not** extract a runtime during Minecraft startup, install one into a cache, detect the current host, modify `JvmLocator`, modify `Relauncher.run`, bypass the current Java-selection UI, or automatically relaunch Minecraft with a packaged runtime.
+Change 002 defines the source-controlled contract, validates the external runtime input bundle, and packages a normalized generated bundle. Change 003 adds production secure extraction and cache-installation machinery that can be called only with an explicit normalized bundle path, explicit platform ID, and explicit cache root. Production Minecraft startup does **not** invoke that installer yet: host detection, automatic selection, `JvmLocator` changes, Java-selection UI changes, `Relauncher.run` changes, and automatic relaunch remain deferred.
 
 The supplied packages are Eclipse Temurin **JREs**, not development JDKs:
 
@@ -173,6 +173,78 @@ do
 done
 ```
 
+## Change 003 secure installer boundary
+
+Production installer code lives under:
+
+```text
+src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/
+```
+
+Its public operation accepts exactly three caller-supplied values:
+
+* the normalized runtime-bundle ZIP path;
+* one explicit manifest platform ID;
+* one explicit cache root.
+
+The installer does not read `os.name` or `os.arch`, inspect `RelauncherConfig`, change the selected Java index, add entries to the existing Java drop-down, execute a packaged Java binary, or invoke `Relauncher.run`. Those integration decisions belong to a later bounded change. The runtime-side parser loads the canonical classpath manifest instead of importing `buildSrc` classes or maintaining a second set of hashes in Java source.
+
+### Deterministic cache layout
+
+Each runtime is isolated by family, exact runtime version, platform, and full archive SHA-256:
+
+```text
+<cache-root>/java-runtimes/<runtime-family>/<runtime-version>/<platform-id>/<archive-sha256>/
+```
+
+The Temurin archive root remains beneath that final directory. Java home, console executable, optional Windows GUI executable, and `release` paths are resolved from the canonical manifest. Another Java update, platform, or archive revision therefore cannot collide with the current installation.
+
+### Completed-install marker
+
+A reusable installation contains:
+
+```text
+.lwjgl3ify-runtime-install.json
+```
+
+Marker schema version `1` records the manifest schema, runtime family and version, platform ID, pinned archive size and SHA-256, archive root, Java-home path, console executable path, optional Windows GUI executable path, and completion state. It contains no external bundle path, user-home path, staging path, secret, or identity timestamp. The marker is written only after extraction and static runtime validation succeed. Missing, malformed, mismatched, or incomplete markers never qualify for reuse.
+
+### Bundle and archive security
+
+Before extraction, the installer verifies that the outer normalized ZIP has one safe top-level directory, one byte-identical bundled manifest, exactly the six canonical nested archives, no duplicate or case-folding collisions, and no unexpected payload. The selected nested archive is streamed to a unique temporary file while its exact byte count and SHA-256 are calculated; it is not loaded into one large byte array.
+
+ZIP and TAR.GZ extraction reject absolute, drive-letter, UNC, URI-like, empty, traversal, overlong, duplicate, case-colliding, outside-root, excessive-entry, and excessive-uncompressed-size paths. Writes are refused through symbolic-link parents. TAR hard links, devices, FIFOs, sockets, and unsupported special entries are rejected. Extraction never calls `tar`, `unzip`, a shell, PowerShell, or `cmd.exe`.
+
+Apache Commons Compress is available on the early runtime classpath through the narrow `runtimeInstallerEmbedded` configuration. The release shadow JAR relocates Commons Compress and its private Commons IO/Codec dependencies beneath `me.eigenraven.lwjgl3ify.internal`, while the existing nested Forge-patches artifact remains intact. Apache licence and notice resources are retained under `META-INF/licenses/`.
+
+### Symbolic links and permissions
+
+The real Linux Temurin archives contain legitimate relative symbolic links in their legal-document trees. Change 003 preserves only links whose path and normalized target remain inside the expected archive root. Links are created after ordinary archive entries, their parents are revalidated through real paths, and later entries cannot write through them. Absolute, drive, UNC, escaping, or unsafe chained targets fail. Filesystems that cannot create a required symbolic link fail clearly rather than replacing it with a text file.
+
+For TAR.GZ runtimes, reasonable owner/group/other permission bits are preserved while setuid, setgid, sticky, ownership, and group metadata are ignored. Unix `bin/java` must remain executable. Windows ZIP installations instead require both `bin/java.exe` and `bin/javaw.exe` and do not invent POSIX requirements. No supplied executable is launched during validation.
+
+### Locking, staging, publication, and recovery
+
+Installation is coordinated by both a JVM-local lock and an operating-system file lock scoped to the deterministic runtime identity. Different platforms or versions do not share one global installation lock. A bounded waiter revalidates the final installation after acquiring the lock and returns it unchanged when valid. Cache hits do not reopen the normalized bundle, rewrite the marker, or replace the final directory.
+
+New extraction occurs in a uniquely named sibling staging directory on the same filesystem as the final path. After static validation and marker creation, publication first attempts `ATOMIC_MOVE`; when the filesystem does not support atomic directory moves, it performs a non-merging same-filesystem move while still holding the lock and then revalidates the published result. Extraction never occurs directly into the final directory.
+
+An incomplete or corrupt final directory is quarantined under the same narrowly scoped parent while the lock is held. Unique stale staging, selected-archive, and quarantine entries for the same runtime identity are removed without following symbolic links. Cleanup verifies containment beneath that runtime cache subtree and refuses paths outside it. A valid neighbouring version or platform is not touched. Failed installation leaves no completed final marker.
+
+## Real installation smoke
+
+The large real-runtime smoke remains separate from ordinary `check` and `build`:
+
+```bash
+./gradlew --no-daemon verifyJavaRuntimeInstallation \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip" \
+  -PwdgJavaRuntimePlatform=macos-aarch64
+```
+
+The task validates and packages the external bundle, compiles the production installer, deletes only its generated location under `build/runtime-installation-smoke`, installs the explicit platform, validates the marker, `release` file, Java paths, and executable permission, then calls the installer a second time. It requires the first result to report installation, the second to report reuse, and both to return identical paths. It prints the installation root, Java home, executable paths, marker path, installed size, and both call outcomes. It never executes Java. Unsupported or omitted platform IDs fail clearly.
+
+Generated normalized bundles and smoke installations stay under `build/`, are ignored by Git, and are excluded from clean source packages.
+
 ## Updating to a later Java 21 security release
 
 A Java update is a deliberate contract migration:
@@ -191,4 +263,4 @@ A Java update is a deliberate contract migration:
 
 Do not accept a new archive merely because its filename resembles the previous package. Unverified substitution weakens the later installation and relaunch boundary.
 
-Automatic extraction, atomic installation, host selection, cache locking, crash recovery, launcher integration, and relaunch behavior remain separate later changes.
+Secure extraction, deterministic cache installation, scoped locking, marker validation, atomic publication, and interrupted-install recovery are implemented by Change 003. Automatic host selection, packaged-bundle discovery, launcher integration, configuration migration, Java-list changes, and relaunch behavior remain separate later changes.

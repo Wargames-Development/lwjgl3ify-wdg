@@ -68,6 +68,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeBundleSupport.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeBundleTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageJavaRuntimeBundleTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeInstallationTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRepositoryTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VersionJsonTask.kt",
             "buildSrc/src/test/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeContractTest.kt",
@@ -95,6 +96,22 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/resources/mixins.lwjgl3ify.early.json",
             "src/main/resources/mixins.lwjgl3ify.late.json",
             "src/main/resources/me/eigenraven/lwjgl3ify/relauncher/runtime/java21-runtime-manifest.json",
+            "src/main/resources/META-INF/licenses/Apache-2.0.txt",
+            "src/main/resources/META-INF/licenses/commons-compress-NOTICE.txt",
+            "src/main/resources/META-INF/licenses/commons-io-NOTICE.txt",
+            "src/main/resources/META-INF/licenses/commons-codec-NOTICE.txt",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallationException.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimePlatform.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeManifest.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimePathSafety.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeCacheLayout.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallResult.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallMarker.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleReader.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeArchiveExtractor.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstaller.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerSmokeMain.java",
             "src/forgePatches/ScriptEngineServices.txt",
             "src/forgePatches/lwjgl3ify-forgePatches-version.txt",
             "src/main/java/me/eigenraven/lwjgl3ify/core/Lwjgl3ifyCoremod.java",
@@ -127,6 +144,9 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/rfb",
             "src/main/java/me/eigenraven/lwjgl3ify/mixins",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime",
+            "src/main/resources/META-INF/licenses",
             "src/forgePatches",
         ).forEach(::requireDirectory)
 
@@ -136,6 +156,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/util/java",
             "src/hotswap/java",
             "src/relauncherStub/java",
+            "src/test/java",
         ).forEach(::requireJavaSources)
 
         val wrapperPropertiesFile = relative("gradle/wrapper/gradle-wrapper.properties")
@@ -251,10 +272,21 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "runClientWithRelauncher",
                 "import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask",
+                "import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeInstallationTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask",
                 "tasks.register<VerifyJavaRuntimeBundleTask>(\"verifyJavaRuntimeBundle\")",
                 "tasks.register<PackageJavaRuntimeBundleTask>(\"packageJavaRuntimeBundle\")",
+                "tasks.register<VerifyJavaRuntimeInstallationTask>(\"verifyJavaRuntimeInstallation\")",
                 "wdgJavaRuntimeBundle",
+                "wdgJavaRuntimePlatform",
+                "RuntimeInstallerSmokeMain",
+                "runtime-installation-smoke",
+                "runtimeInstallerEmbedded",
+                "compileClasspath += runtimeInstallerEmbedded",
+                "runtimeClasspath += runtimeInstallerEmbedded",
+                "relocate(\"org.apache.commons.compress\", \"me.eigenraven.lwjgl3ify.internal.commonscompress\")",
+                "relocate(\"org.apache.commons.io\", \"me.eigenraven.lwjgl3ify.internal.commonsio\")",
+                "relocate(\"org.apache.commons.codec\", \"me.eigenraven.lwjgl3ify.internal.commonscodec\")",
                 "WDG_JAVA_RUNTIME_BUNDLE",
                 "runtime-packages/lwjgl3ify-wdg-java21-runtimes.zip",
                 "tasks.register<VersionJsonTask>(\"versionJson\")",
@@ -277,6 +309,20 @@ abstract class VerifyRepositoryTask : DefaultTask() {
         )
 
         checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeInstallationTask.kt"),
+            listOf(
+                "abstract class VerifyJavaRuntimeInstallationTask",
+                "private val execOperations: ExecOperations",
+                "private val fileSystemOperations: FileSystemOperations",
+                "@TaskAction",
+                "execOperations.javaexec",
+                "fileSystemOperations.delete",
+            ),
+            "configuration-cache-safe runtime installation smoke task",
+            failures,
+        )
+
+        checkFileContains(
             relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VersionJsonTask.kt"),
             listOf(
                 "@CacheableTask",
@@ -295,6 +341,80 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "build.gradle.kts",
             failures,
         )
+
+
+        checkFileContains(
+            relative("dependencies.gradle"),
+            listOf(
+                "runtimeInstallerEmbedded(\"org.apache.commons:commons-compress:1.27.1\")",
+                "testImplementation(\"junit:junit:4.13.2\")",
+            ),
+            "early runtime installer dependencies",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstaller.java"),
+            listOf(
+                "public RuntimeInstallResult install(Path normalizedBundle, String platformId, Path cacheRoot)",
+                "StandardCopyOption.ATOMIC_MOVE",
+                "FileLock",
+                "RuntimeInstallMarker",
+            ),
+            "production runtime installer",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeArchiveExtractor.java"),
+            listOf(
+                "TarArchiveInputStream",
+                "ZipArchiveInputStream",
+                "Files.createSymbolicLink",
+                "MAX_ENTRIES",
+                "MAX_UNCOMPRESSED_BYTES",
+            ),
+            "secure runtime extractor",
+            failures,
+        )
+        checkFileContains(
+            relative("src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerTest.java"),
+            listOf(
+                "concurrentInstallersProduceOneFinalInstallAndSameJavaPath",
+                "validUnixFixturePreservesExecutableAndSafeSymlink",
+                "validWindowsFixtureInstallsThenReusesWithoutMarkerRewrite",
+                "neighbouringRuntimeIsUntouchedAndDeletionRefusesOutsideCache",
+            ),
+            "focused runtime installer tests",
+            failures,
+        )
+        checkFileContains(
+            relative("docs/BUNDLED_JAVA.md"),
+            listOf(
+                "Change 003 secure installer boundary",
+                ".lwjgl3ify-runtime-install.json",
+                "verifyJavaRuntimeInstallation",
+                "Production Minecraft startup does **not** invoke",
+            ),
+            "bundled Java installer documentation",
+            failures,
+        )
+        listOf(
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/Relauncher.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/JvmLocator.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherUserInterface.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/Lwjgl3ifyRelauncherTweaker.java",
+        ).forEach { deferredPath ->
+            checkFileDoesNotContain(
+                relative(deferredPath),
+                listOf(
+                    "relauncher.runtime.RuntimeInstaller",
+                    "new RuntimeInstaller",
+                    "verifyJavaRuntimeInstallation",
+                ),
+                "deferred automatic runtime wiring in $deferredPath",
+                failures,
+            )
+        }
 
         checkFileContains(
             relative("launcher-metadata/version.json"),
@@ -392,7 +512,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
         val contents = file.readText()
         forbiddenText.forEach { forbidden ->
             if (contents.contains(forbidden)) {
-                failures += "$description contains forbidden configuration-cache wiring: $forbidden"
+                failures += "$description contains forbidden invariant: $forbidden"
             }
         }
     }

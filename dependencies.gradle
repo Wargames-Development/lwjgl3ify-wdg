@@ -46,6 +46,10 @@ dependencies {
     forgePatchesEmbedded("org.apache.commons:commons-lang3:3.17.0")
     forgePatchesEmbedded("org.apache.commons:commons-compress:1.27.1")
     forgePatchesEmbedded("commons-io:commons-io:2.18.0")
+
+    // Change 003: available before relaunch, privately embedded in the release shadow JAR, and relocated.
+    runtimeInstallerEmbedded("org.apache.commons:commons-compress:1.27.1")
+    testImplementation("junit:junit:4.13.2")
     // For Just Another Spawner
     forgePatchesEmbedded("org.mvel:mvel2:2.5.2.Final")
 

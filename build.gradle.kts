@@ -6,6 +6,7 @@ import com.modrinth.minotaur.ModrinthExtension
 import de.undercouch.gradle.tasks.download.Download
 import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeInstallationTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyRepositoryTask
 import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask
 import java.io.File
@@ -43,7 +44,7 @@ val verifyJavaRuntimeBundle = tasks.register<VerifyJavaRuntimeBundleTask>("verif
     bundleFile.set(javaRuntimeBundleFile)
 }
 
-tasks.register<PackageJavaRuntimeBundleTask>("packageJavaRuntimeBundle") {
+val packageJavaRuntimeBundle = tasks.register<PackageJavaRuntimeBundleTask>("packageJavaRuntimeBundle") {
     dependsOn(verifyJavaRuntimeBundle)
     manifestFile.set(javaRuntimeManifestFile)
     bundleFile.set(javaRuntimeBundleFile)
@@ -53,6 +54,19 @@ tasks.register<PackageJavaRuntimeBundleTask>("packageJavaRuntimeBundle") {
         ),
     )
 }
+
+val javaRuntimePlatform = providers.gradleProperty("wdgJavaRuntimePlatform")
+val javaRuntimeInstallationSmokeRoot = layout.buildDirectory.dir("runtime-installation-smoke")
+
+val verifyJavaRuntimeInstallation =
+    tasks.register<VerifyJavaRuntimeInstallationTask>("verifyJavaRuntimeInstallation") {
+        dependsOn(packageJavaRuntimeBundle, tasks.testClasses)
+        runtimeClasspath.from(sourceSets.test.get().runtimeClasspath)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        platformId.set(javaRuntimePlatform)
+        cacheRoot.set(javaRuntimeInstallationSmokeRoot)
+        mainClassName.set("me.eigenraven.lwjgl3ify.relauncher.runtime.RuntimeInstallerSmokeMain")
+    }
 
 val newJavaToolchainSpec: JavaToolchainSpec.() -> Unit = {
     vendor = JvmVendorSpec.AZUL
@@ -121,12 +135,21 @@ minecraft {
 }
 
 lateinit var forgePatchesEmbedded: Configuration
+lateinit var runtimeInstallerEmbedded: Configuration
 lateinit var versionJsonElements: Configuration
 
 configurations {
     forgePatchesEmbedded = create("forgePatchesEmbedded") {
         isCanBeConsumed = false
         isCanBeResolved = true
+    }
+    runtimeInstallerEmbedded = create("runtimeInstallerEmbedded") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        description = "Private early-runtime archive support embedded and relocated into the release shadow JAR"
+    }
+    named("shadowImplementation") {
+        extendsFrom(runtimeInstallerEmbedded)
     }
     versionJsonElements = create("versionJsonElements") {
         isCanBeConsumed = false
@@ -148,6 +171,12 @@ sourceSets {
         java {
             srcDir("src/generated/java")
         }
+        compileClasspath += runtimeInstallerEmbedded
+        runtimeClasspath += runtimeInstallerEmbedded
+    }
+    test {
+        compileClasspath += runtimeInstallerEmbedded
+        runtimeClasspath += runtimeInstallerEmbedded
     }
 }
 
@@ -299,6 +328,9 @@ val versionJsonFile = tasks.register<VersionJsonTask>("versionJson") {
 
 tasks.shadowJar {
     dependsOn(forgePatchesJar, versionJsonFile)
+    relocate("org.apache.commons.compress", "me.eigenraven.lwjgl3ify.internal.commonscompress")
+    relocate("org.apache.commons.io", "me.eigenraven.lwjgl3ify.internal.commonsio")
+    relocate("org.apache.commons.codec", "me.eigenraven.lwjgl3ify.internal.commonscodec")
     from(hotswapSet.output)
     // Use .zip because shadow unpacks .jar archives into the parent jar
     from(forgePatchesJar) {

@@ -29,7 +29,7 @@ gradlew.bat --no-daemon clean verifyRepository test build
 
 Normal Git checkouts retain the commit timestamp used by `versionJson`. In a clean source archive without `.git`, Gradle configuration and verification remain available; `versionJson` uses the reproducible fallback timestamp `1970-01-01T00:00:00Z` rather than failing configuration. Tagged/repository builds keep the existing Git-derived value.
 
-The focused bundled-runtime contract tests live in `buildSrc/src/test` and must be run explicitly with `./gradlew --no-daemon -p buildSrc test`. Since that command treats `buildSrc` as a standalone build root, `buildSrc/gradle/gradle-daemon-jvm.properties` mirrors the repository's Java 25 daemon criteria; `verifyRepository` rejects any drift between the two files. The root `test` lifecycle must also configure and complete successfully. Continue running both through Gradle rather than an IDE-native compiler.
+The focused bundled-runtime contract tests live in `buildSrc/src/test` and must be run explicitly with `./gradlew --no-daemon -p buildSrc test`. Since that command treats `buildSrc` as a standalone build root, `buildSrc/gradle/gradle-daemon-jvm.properties` mirrors the repository's Java 25 daemon criteria; `verifyRepository` rejects any drift between the two files. Production installer fixtures and concurrency/recovery tests live under `src/test/java` and run through the root `test` lifecycle. Continue running both suites through Gradle rather than an IDE-native compiler.
 
 ## External Java runtime contract tasks
 
@@ -41,6 +41,10 @@ The normal lifecycle does not require the 264 MB external input. Run these tasks
 
 ./gradlew --no-daemon packageJavaRuntimeBundle \
   -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+
+./gradlew --no-daemon verifyJavaRuntimeInstallation \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip" \
+  -PwdgJavaRuntimePlatform=macos-aarch64
 ```
 
 `verifyJavaRuntimeBundle` performs cross-platform static inspection and never executes a supplied Java binary. `packageJavaRuntimeBundle` creates and verifies:
@@ -49,7 +53,9 @@ The normal lifecycle does not require the 264 MB external input. Run these tasks
 build/runtime-packages/lwjgl3ify-wdg-java21-runtimes.zip
 ```
 
-Full supported-platform, manifest, security, update, and inspection details are in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md).
+`verifyJavaRuntimeInstallation` is intentionally outside the normal lifecycle. It installs only the explicit platform into `build/runtime-installation-smoke`, validates the static runtime and completed marker, invokes the installer again to prove reuse and identical returned paths, and never executes Java.
+
+Full supported-platform, manifest, installer security, cache, update, and inspection details are in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md).
 
 ## Focused build and distribution tasks
 
@@ -108,7 +114,7 @@ unzip -Z1 build/distributions/*-multimc.zip | grep -E 'mmc-pack.json|patches/|li
 
 The generated `runClient17`, `runClient21`, `runClient25`, `runServer17`, `runServer21`, and `runServer25` variants are deliberately disabled in this repository; the ordinary run tasks already carry the intended launcher configuration.
 
-The bundled-runtime contract does not require a Minecraft runtime smoke because it changes no production Java source, relauncher behavior, JVM arguments, or launcher metadata templates. A later runtime-affecting change must add appropriate client, server, extraction, installation, and relauncher smokes.
+Change 003 adds production installer source but deliberately leaves every Minecraft and launcher entry point unchanged. Its required runtime-affecting smoke is the explicit `verifyJavaRuntimeInstallation` task; ordinary client/server/relauncher smokes remain unchanged because no startup path invokes the installer. A later automatic-selection/relaunch change must add appropriate client, server, first-run, cache-hit, and relauncher smokes.
 
 ## Clean source package
 
