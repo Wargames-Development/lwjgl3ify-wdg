@@ -1,14 +1,23 @@
+import com.gtnewhorizons.retrofuturagradle.mcp.GenSrgMappingsTask
+import com.gtnewhorizons.retrofuturagradle.minecraft.MinecraftTasks
 import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
 import com.gtnewhorizons.retrofuturagradle.shadow.org.apache.commons.lang3.SystemUtils
 import com.gtnewhorizons.retrofuturagradle.util.Distribution
 import com.gtnewhorizons.retrofuturagradle.util.ProviderToStringWrapper
 import com.modrinth.minotaur.ModrinthExtension
 import de.undercouch.gradle.tasks.download.Download
+import me.eigenraven.lwjgl3ify.gradle.PackageBundledJavaClientTask
 import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask
+import me.eigenraven.lwjgl3ify.gradle.StageBundledJavaForRelauncherTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyAutomaticJavaRuntimeTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyBundledJavaClientPackageTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeInstallationTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyProductionModArtifactTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyRelauncherChildExitPropagationTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyRepositoryTask
 import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask
+import org.gradle.api.tasks.PathSensitivity
 import java.io.File
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -66,6 +75,31 @@ val verifyJavaRuntimeInstallation =
         platformId.set(javaRuntimePlatform)
         cacheRoot.set(javaRuntimeInstallationSmokeRoot)
         mainClassName.set("me.eigenraven.lwjgl3ify.relauncher.runtime.RuntimeInstallerSmokeMain")
+    }
+
+val developmentGameDirectoryPath = providers.gradleProperty("wdgRelauncherGameDirectory")
+    .orElse(layout.projectDirectory.dir("run").asFile.absolutePath)
+val developmentGameDirectory = layout.dir(developmentGameDirectoryPath.map(::File))
+val stageBundledJavaForRelauncher =
+    tasks.register<StageBundledJavaForRelauncherTask>("stageBundledJavaForRelauncher") {
+        dependsOn(packageJavaRuntimeBundle)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        stagedBundle.set(
+            developmentGameDirectory.map { directory ->
+                directory.file("lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip")
+            },
+        )
+    }
+
+val verifyAutomaticJavaRuntime =
+    tasks.register<VerifyAutomaticJavaRuntimeTask>("verifyAutomaticJavaRuntime") {
+        dependsOn(packageJavaRuntimeBundle, tasks.testClasses)
+        runtimeClasspath.from(sourceSets.test.get().runtimeClasspath)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        platformId.set(javaRuntimePlatform)
+        cacheRoot.set(layout.buildDirectory.dir("automatic-runtime-smoke/cache"))
+        gameDirectory.set(layout.buildDirectory.dir("automatic-runtime-smoke/game"))
+        mainClassName.set("me.eigenraven.lwjgl3ify.relauncher.runtime.AutomaticRuntimeSmokeMain")
     }
 
 val newJavaToolchainSpec: JavaToolchainSpec.() -> Unit = {
@@ -136,6 +170,8 @@ minecraft {
 
 lateinit var forgePatchesEmbedded: Configuration
 lateinit var runtimeInstallerEmbedded: Configuration
+lateinit var relauncherSmokeChildSupport: Configuration
+lateinit var relauncherSmokeRuntime: Configuration
 lateinit var versionJsonElements: Configuration
 
 configurations {
@@ -147,6 +183,23 @@ configurations {
         isCanBeConsumed = false
         isCanBeResolved = true
         description = "Private early-runtime archive support embedded and relocated into the release shadow JAR"
+    }
+    relauncherSmokeChildSupport = create("relauncherSmokeChildSupport") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        description = "Required mod support added explicitly to the production-like relauncher smoke child"
+    }
+    relauncherSmokeRuntime = create("relauncherSmokeRuntime") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        description = "Minimal parent runtime for the production-like relauncher smoke"
+        extendsFrom(
+            named("api").get(),
+            named("implementation").get(),
+            named("runtimeOnly").get(),
+            runtimeInstallerEmbedded,
+            relauncherSmokeChildSupport,
+        )
     }
     named("shadowImplementation") {
         extendsFrom(runtimeInstallerEmbedded)
@@ -165,7 +218,8 @@ sourceSets {
     create("util")
     hotswapSet = create("hotswap")
     relauncherStubSet = create("relauncherStub") {
-        compileClasspath += forgePatchesEmbedded + configurations.shadowImplementation.get()
+        compileClasspath +=
+            sourceSets.main.get().output + forgePatchesEmbedded + configurations.shadowImplementation.get()
     }
     main {
         java {
@@ -326,6 +380,55 @@ val versionJsonFile = tasks.register<VersionJsonTask>("versionJson") {
     outputFile.set(versionJsonPath)
 }
 
+val generatedMixinRefmap = layout.buildDirectory.file("tmp/mixins/mixins.lwjgl3ify.refmap.json")
+val productionModArtifact = tasks.reobfJar.flatMap { it.archiveFile }
+val forgeMappings = tasks.named<GenSrgMappingsTask>("generateForgeSrgMappings")
+val minecraftTasks = extensions.getByType<MinecraftTasks>()
+
+// The generated refmap is a semantic input to both archive stages. RFG already copies it through
+// processResources; these declarations prevent a stale shadow/reobf artifact from surviving a refmap change.
+tasks.processResources {
+    inputs.file(generatedMixinRefmap)
+        .withPropertyName("generatedMixinRefmap")
+        .withPathSensitivity(PathSensitivity.NONE)
+}
+tasks.shadowJar {
+    dependsOn(tasks.processResources)
+    inputs.file(generatedMixinRefmap)
+        .withPropertyName("generatedMixinRefmap")
+        .withPathSensitivity(PathSensitivity.NONE)
+}
+tasks.reobfJar {
+    dependsOn(tasks.processResources)
+    inputs.file(generatedMixinRefmap)
+        .withPropertyName("generatedMixinRefmap")
+        .withPathSensitivity(PathSensitivity.NONE)
+}
+
+val verifyProductionModArtifact =
+    tasks.register<VerifyProductionModArtifactTask>("verifyProductionModArtifact") {
+        dependsOn(tasks.reobfJar, forgeMappings, minecraftTasks.taskDownloadVanillaJars)
+        productionModJar.set(productionModArtifact)
+        mcpToSrgMapping.set(tasks.reobfJar.flatMap { it.srg })
+        notchToSrgMapping.set(forgeMappings.flatMap { it.notchToSrg })
+        productionMinecraftJar.set(minecraftTasks.vanillaClientLocation)
+        generatedRefmap.set(generatedMixinRefmap)
+        canonicalRuntimeManifest.set(javaRuntimeManifestFile)
+        verificationMetadata.set(
+            layout.buildDirectory.file("verification/production-mod-artifact.properties"),
+        )
+    }
+
+val productionArtifactPath = productionModArtifact.map { it.asFile.absoluteFile.toPath().normalize().toString() }
+val productionArtifactSha256 = providers.fileContents(
+    verifyProductionModArtifact.flatMap { it.verificationMetadata },
+).asText.map { metadata ->
+    metadata.lineSequence()
+        .first { it.startsWith("artifactSha256=") }
+        .substringAfter('=')
+        .trim()
+}
+
 tasks.shadowJar {
     dependsOn(forgePatchesJar, versionJsonFile)
     relocate("org.apache.commons.compress", "me.eigenraven.lwjgl3ify.internal.commonscompress")
@@ -340,6 +443,28 @@ tasks.shadowJar {
         rename { "me/eigenraven/lwjgl3ify/relauncher/version.json" }
     }
 }
+
+val packageBundledJavaClient =
+    tasks.register<PackageBundledJavaClientTask>("packageBundledJavaClient") {
+        dependsOn(verifyProductionModArtifact, packageJavaRuntimeBundle)
+        modJar.set(productionModArtifact)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        topLevelDirectory.set("lwjgl3ify-wdg-client")
+        outputFile.set(
+            layout.buildDirectory.file(
+                "distributions/lwjgl3ify-wdg-${project.version}-client-with-java21.zip",
+            ),
+        )
+    }
+
+val verifyBundledJavaClientPackage =
+    tasks.register<VerifyBundledJavaClientPackageTask>("verifyBundledJavaClientPackage") {
+        dependsOn(packageBundledJavaClient, verifyProductionModArtifact)
+        packageFile.set(packageBundledJavaClient.flatMap { it.outputFile })
+        expectedModJar.set(productionModArtifact)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        manifestFile.set(javaRuntimeManifestFile)
+    }
 
 val versionJsonArtifact = artifacts.add("versionJsonElements", versionJsonPath) {
     type = "json"
@@ -427,12 +552,12 @@ val runWithRelauncher = tasks.register<RunMinecraftTask>("runClientWithRelaunche
 runWithRelauncher.configure {
     setup(project)
     group = "lwjgl3ify"
-    description = "Runs the deobfuscated client while triggering the relauncher"
+    description = "Runs a production-like client smoke while triggering the Java relauncher"
     dependsOn(
         sourceSets.mcLauncher.map { it.classesTaskName },
         tasks.downloadVanillaAssets,
         tasks.packagePatchedMc,
-        tasks.reobfJar,
+        verifyProductionModArtifact,
         dlOriginalLaunchwrapper,
         "jar"
     )
@@ -440,16 +565,87 @@ runWithRelauncher.configure {
     username = minecraft.username
     userUUID = minecraft.userUUID
     lwjglVersion = 2
+    workingDir(developmentGameDirectory.get().asFile)
 
     systemProperty("gradlestart.bouncerClient", "net.minecraft.launchwrapper.Launch")
+    // Keep this smoke production-like. The Java 8 parent must only contain lwjgl3ify and its
+    // required bootstrap support; optional development mods such as NEI are deliberately absent.
+    // The Java 21 child receives the local dirty lwjgl3ify JAR and required UniMixins support
+    // explicitly, while Minecraft, Forge, LWJGL, and launcher libraries remain relauncher-owned.
+    val smokeChildClasspath = files(productionModArtifact, relauncherSmokeChildSupport)
+    val smokeChildClasspathString = providers.provider {
+        smokeChildClasspath.files
+            .map { it.absoluteFile.toPath().normalize().toString() }
+            .sorted()
+            .joinToString(File.pathSeparator)
+    }
+    systemProperty(
+        "lwjgl3ify.relauncher.additionalClasspath",
+        ProviderToStringWrapper(smokeChildClasspathString),
+    )
+    systemProperty(
+        "lwjgl3ify.relauncher.additionalTweakers",
+        "org.spongepowered.asm.launch.MixinTweaker",
+    )
+
+    systemProperty("lwjgl3ify.relauncher.supervisedLaunch", "true")
+    systemProperty(
+        "lwjgl3ify.relauncher.expectedProductionArtifact",
+        ProviderToStringWrapper(productionArtifactPath),
+    )
+    systemProperty(
+        "lwjgl3ify.relauncher.expectedProductionSha256",
+        ProviderToStringWrapper(productionArtifactSha256),
+    )
 
     classpath(tasks.packageMcLauncher)
     classpath(tasks.packagePatchedMc)
     classpath(originalLaunchWrapperPath)
     classpath(configurations.patchedMinecraft)
-    classpath(tasks.reobfJar)
-    classpath(configurations.runtimeClasspath)
+    classpath(productionModArtifact)
+    classpath(relauncherSmokeRuntime)
     mainClass = "GradleStart"
+    if (javaRuntimeBundlePath.isPresent) {
+        dependsOn(stageBundledJavaForRelauncher)
+        val smokeCacheRoot = providers.gradleProperty("wdgRelauncherRuntimeCacheRoot")
+            .orElse(layout.buildDirectory.dir("relauncher-runtime-cache").map { it.asFile.absolutePath })
+        systemProperty(
+            "lwjgl3ify.relauncher.runtimeCacheRoot",
+            ProviderToStringWrapper(smokeCacheRoot),
+        )
+        systemProperty(
+            "lwjgl3ify.relauncher.forceSettings",
+            ProviderToStringWrapper(providers.gradleProperty("wdgRelauncherForceSettings").orElse("false")),
+        )
+        systemProperty(
+            "lwjgl3ify.relauncher.disableBundledJava",
+            ProviderToStringWrapper(providers.gradleProperty("wdgRelauncherDisableBundledJava").orElse("false")),
+        )
+    }
+}
+
+val childExitJavaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(17)
+}
+val verifyRelauncherChildExitPropagation =
+    tasks.register<VerifyRelauncherChildExitPropagationTask>("verifyRelauncherChildExitPropagation") {
+        dependsOn(tasks.testClasses)
+        runtimeClasspath.from(sourceSets.test.get().runtimeClasspath)
+        javaExecutable.set(childExitJavaLauncher.map { it.executablePath })
+        mainClassName.set("me.eigenraven.lwjgl3ify.relauncher.RelauncherChildExitSmokeMain")
+        expectedExitCode.set(37)
+    }
+
+// This task is intentionally expected to fail with exit code 37. The user-facing wrapper treats that
+// nonzero Gradle result as a passing regression check.
+tasks.register<JavaExec>("runRelauncherChildExitFailure") {
+    group = "verification"
+    description = "Deliberately fails after proving the raw JavaExec path preserves child exit code 37"
+    dependsOn(tasks.testClasses)
+    javaLauncher.set(childExitJavaLauncher)
+    classpath(sourceSets.test.get().runtimeClasspath)
+    mainClass.set("me.eigenraven.lwjgl3ify.relauncher.RelauncherChildExitSmokeMain")
+    args("37")
 }
 
 tasks.runObfClient {

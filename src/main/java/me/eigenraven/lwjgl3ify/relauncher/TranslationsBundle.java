@@ -37,6 +37,8 @@ public class TranslationsBundle extends ListResourceBundle {
     public static final String KEY_RFB_DUMP_CLASSES_PER_TRANSFORMER = "rfbDumpClassesPerTransformer";
     public static final String KEY_FORWARD_LOGS_TIP = "forwardLogsTip";
     public static final String KEY_PREVIEW_JAVA_OPTS = "previewJavaOpts";
+    public static final String KEY_BUNDLED_JAVA_STATUS = "bundled_java_status";
+    public static final String KEY_USE_BUNDLED_JAVA = "use_bundled_java";
 
     @Override
     protected Object[][] getContents() {
@@ -50,6 +52,8 @@ public class TranslationsBundle extends ListResourceBundle {
             { KEY_ADD_JAVA, "Add" },
             { KEY_RUN_GAME, "Run" },
             { KEY_JAVA_EXECUTABLE, "Java executable: " },
+            { KEY_BUNDLED_JAVA_STATUS, "Packaged Java status" },
+            { KEY_USE_BUNDLED_JAVA, "Use packaged Java 21 automatically when available" },
             { KEY_MIN_MOD_JAVA, "Minimum Java version required by your mods: %s" },
             { KEY_TAB_BASIC, "Basic" },
             { KEY_TAB_ADVANCED, "Advanced" },

@@ -108,6 +108,9 @@ public class Downloader {
                 }
                 final String elGav = elLibrary.getAsJsonPrimitive("name")
                     .getAsString();
+                if (isBundledLwjgl3ifyArtifact(elGav)) {
+                    continue;
+                }
                 if (elLibrary.has("downloads")) {
                     final JsonObject elDownloads = elLibrary.getAsJsonObject("downloads");
                     // URL artifact
@@ -138,9 +141,6 @@ public class Downloader {
                     final String elMavenUrl = elLibrary.getAsJsonPrimitive("url")
                         .getAsString();
                     final GavCoords gav = new GavCoords(elGav);
-                    if (gav.mArtifact.equals("lwjgl3ify")) {
-                        continue;
-                    }
 
                     final String mURL = elMavenUrl + gav.mPath;
                     final Path path = mavenCachePath.resolve(gav.mPath);
@@ -166,6 +166,10 @@ public class Downloader {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    static boolean isBundledLwjgl3ifyArtifact(final String coordinates) {
+        return "lwjgl3ify".equals(new GavCoords(coordinates).mArtifact);
     }
 
     public void runDownloads() {

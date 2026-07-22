@@ -14,6 +14,8 @@ public class TranslationsBundle_pl_PL extends TranslationsBundle {
             { KEY_ADD_JAVA, "Dodaj" },
             { KEY_RUN_GAME, "Uruchom" },
             { KEY_JAVA_EXECUTABLE, "Plik wykonywalny Javy: " },
+            { KEY_BUNDLED_JAVA_STATUS, "Stan dołączonej Javy" },
+            { KEY_USE_BUNDLED_JAVA, "Automatycznie używaj dołączonej Javy 21, gdy jest dostępna" },
             { KEY_MIN_MOD_JAVA, "Minimalna wersja Javy wymagana przez twoje mody: %s" },
             { KEY_TAB_BASIC, "Podstawowe" },
             { KEY_TAB_ADVANCED, "Zaawansowane" },

@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -109,12 +110,26 @@ public final class RuntimeManifest {
         Map<String, RuntimePlatform> platforms = new LinkedHashMap<String, RuntimePlatform>();
         Set<String> tuples = new HashSet<String>();
         Set<String> normalizedPaths = new HashSet<String>();
+        Map<String, String> operatingSystemAliases = new LinkedHashMap<String, String>();
+        Map<String, String> architectureAliases = new LinkedHashMap<String, String>();
         for (JsonElement element : array) {
             if (!element.isJsonObject()) throw new RuntimeInstallationException("Each platform must be an object");
             JsonObject platform = element.getAsJsonObject();
             String id = safeIdentity(requiredString(platform, "id"), "platform id");
             String os = safeIdentity(requiredString(platform, "operatingSystem"), "operatingSystem");
             String arch = safeIdentity(requiredString(platform, "architecture"), "architecture");
+            Set<String> osAliases = aliases(platform, "operatingSystemAliases", os);
+            Set<String> archAliases = aliases(platform, "architectureAliases", arch);
+            registerAliases(operatingSystemAliases, osAliases, os, "operating-system");
+            registerAliases(architectureAliases, archAliases, arch, "architecture");
+            String libc = optionalString(platform, "libc");
+            if ("linux".equals(os)) {
+                if (!"gnu".equals(libc)) {
+                    throw new RuntimeInstallationException("Linux platform must require GNU libc: " + id);
+                }
+            } else if (libc != null) {
+                throw new RuntimeInstallationException("Non-Linux platform defines libc: " + id);
+            }
             String tuple = os.toLowerCase(Locale.ROOT) + "/" + arch.toLowerCase(Locale.ROOT);
             if (!tuples.add(tuple)) throw new RuntimeInstallationException("Duplicate OS/architecture tuple: " + tuple);
             if (platforms.containsKey(id)) throw new RuntimeInstallationException("Duplicate platform ID: " + id);
@@ -181,6 +196,9 @@ public final class RuntimeManifest {
                     id,
                     os,
                     arch,
+                    osAliases,
+                    archAliases,
+                    libc,
                     normalized,
                     type,
                     size,
@@ -205,6 +223,33 @@ public final class RuntimeManifest {
         return platform;
     }
 
+    public RuntimePlatform selectPlatform(RuntimeHost host) throws RuntimeInstallationException {
+        if (host == null) throw new NullPointerException("host");
+        RuntimePlatform match = null;
+        for (RuntimePlatform platform : platforms.values()) {
+            if (!platform.getOperatingSystem()
+                .equals(host.getOperatingSystem())
+                || !platform.getArchitecture()
+                    .equals(host.getArchitecture())) {
+                continue;
+            }
+            if ("linux".equals(host.getOperatingSystem()) && !platform.getLibc()
+                .equals(host.getLibc())) {
+                continue;
+            }
+            if (match != null) {
+                throw new RuntimeInstallationException(
+                    "Runtime manifest contains multiple matches for host " + host.getPlatformTuple());
+            }
+            match = platform;
+        }
+        if (match == null) {
+            throw new RuntimeInstallationException(
+                "Runtime manifest has no platform for host " + host.getPlatformTuple());
+        }
+        return match;
+    }
+
     public int getSchemaVersion() {
         return schemaVersion;
     }
@@ -223,6 +268,44 @@ public final class RuntimeManifest {
 
     byte[] getCanonicalBytes() {
         return canonicalBytes.clone();
+    }
+
+    private static Set<String> aliases(JsonObject object, String field, String canonical)
+        throws RuntimeInstallationException {
+        JsonElement value = object.get(field);
+        Set<String> aliases = new LinkedHashSet<String>();
+        if (value == null || value.isJsonNull()) {
+            aliases.add(canonical.toLowerCase(Locale.ROOT));
+            return aliases;
+        }
+        if (!value.isJsonArray()) throw new RuntimeInstallationException("Invalid alias array: " + field);
+        for (JsonElement element : value.getAsJsonArray()) {
+            if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive()
+                .isString()) {
+                throw new RuntimeInstallationException("Alias values must be strings: " + field);
+            }
+            String alias = element.getAsString()
+                .trim();
+            if (alias.isEmpty() || alias.length() > 64 || !alias.matches("[A-Za-z0-9._ +\\-]+")) {
+                throw new RuntimeInstallationException("Malformed alias in " + field + ": " + alias);
+            }
+            aliases.add(alias.toLowerCase(Locale.ROOT));
+        }
+        if (!aliases.contains(canonical.toLowerCase(Locale.ROOT))) {
+            throw new RuntimeInstallationException(field + " must include canonical value " + canonical);
+        }
+        return aliases;
+    }
+
+    private static void registerAliases(Map<String, String> registry, Set<String> aliases, String canonical,
+        String description) throws RuntimeInstallationException {
+        for (String alias : aliases) {
+            String previous = registry.put(alias, canonical);
+            if (previous != null && !previous.equals(canonical)) {
+                throw new RuntimeInstallationException(
+                    "Ambiguous " + description + " alias " + alias + ": " + previous + " and " + canonical);
+            }
+        }
     }
 
     private static String safeIdentity(String value, String field) throws RuntimeInstallationException {

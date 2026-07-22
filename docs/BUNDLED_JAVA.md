@@ -2,9 +2,9 @@
 
 ## Purpose and boundary
 
-The WDG fork is preparing verified packaged Java 21 runtimes so a later bounded change can select and relaunch with an architecture-correct runtime without asking the user to manage Java manually.
+The WDG fork provides verified packaged Java 21 runtimes so supported clients can begin on the legacy Java path and relaunch automatically with an architecture-correct runtime without manual Java selection.
 
-Change 002 defines the source-controlled contract, validates the external runtime input bundle, and packages a normalized generated bundle. Change 003 adds production secure extraction and cache-installation machinery that can be called only with an explicit normalized bundle path, explicit platform ID, and explicit cache root. Production Minecraft startup does **not** invoke that installer yet: host detection, automatic selection, `JvmLocator` changes, Java-selection UI changes, `Relauncher.run` changes, and automatic relaunch remain deferred.
+Change 002 defines the source-controlled contract, validates the external runtime input bundle, and packages a normalized generated bundle. Change 003 provides secure extraction and deterministic cache installation with explicit inputs. Change 004 adds bounded production client coordination: canonical bundle discovery, host detection, manifest-driven platform selection, installer invocation, explicit launch decisions, process-local Java selection, settings recovery, real Java execution verification, and a client root-overlay package. Distant Horizons and dedicated-server automatic relaunch remain deferred.
 
 The supplied packages are Eclipse Temurin **JREs**, not development JDKs:
 
@@ -187,7 +187,7 @@ Its public operation accepts exactly three caller-supplied values:
 * one explicit manifest platform ID;
 * one explicit cache root.
 
-The installer does not read `os.name` or `os.arch`, inspect `RelauncherConfig`, change the selected Java index, add entries to the existing Java drop-down, execute a packaged Java binary, or invoke `Relauncher.run`. Those integration decisions belong to a later bounded change. The runtime-side parser loads the canonical classpath manifest instead of importing `buildSrc` classes or maintaining a second set of hashes in Java source.
+The installer itself still does not read `os.name` or `os.arch`, inspect `RelauncherConfig`, change the selected Java index, or invoke `Relauncher.run`. Change 004 keeps those decisions in a separate coordinator and launch-selection layer. The runtime-side parser loads the canonical classpath manifest instead of importing `buildSrc` classes or maintaining a second set of hashes in Java source.
 
 ### Deterministic cache layout
 
@@ -215,7 +215,7 @@ Before extraction, the installer verifies that the outer normalized ZIP has one 
 
 ZIP and TAR.GZ extraction reject absolute, drive-letter, UNC, URI-like, empty, traversal, overlong, duplicate, case-colliding, outside-root, excessive-entry, and excessive-uncompressed-size paths. Writes are refused through symbolic-link parents. TAR hard links, devices, FIFOs, sockets, and unsupported special entries are rejected. Extraction never calls `tar`, `unzip`, a shell, PowerShell, or `cmd.exe`.
 
-Apache Commons Compress is available on the early runtime classpath through the narrow `runtimeInstallerEmbedded` configuration. The release shadow JAR relocates Commons Compress and its private Commons IO/Codec dependencies beneath `me.eigenraven.lwjgl3ify.internal`, while the existing nested Forge-patches artifact remains intact. Apache licence and notice resources are retained under `META-INF/licenses/`.
+Apache Commons Compress is available on the early runtime classpath through the narrow `runtimeInstallerEmbedded` configuration. The development shadow JAR relocates Commons Compress and its private Commons IO/Codec dependencies beneath `me.eigenraven.lwjgl3ify.internal`, while the existing nested Forge-patches artifact remains intact. Apache licence and notice resources are retained under `META-INF/licenses/`.
 
 ### Symbolic links and permissions
 
@@ -263,4 +263,129 @@ A Java update is a deliberate contract migration:
 
 Do not accept a new archive merely because its filename resembles the previous package. Unverified substitution weakens the later installation and relaunch boundary.
 
-Secure extraction, deterministic cache installation, scoped locking, marker validation, atomic publication, and interrupted-install recovery are implemented by Change 003. Automatic host selection, packaged-bundle discovery, launcher integration, configuration migration, Java-list changes, and relaunch behavior remain separate later changes.
+Secure extraction, deterministic cache installation, scoped locking, marker validation, atomic publication, and interrupted-install recovery remain implemented by Change 003. Change 004 consumes that boundary without weakening it; managed runtime paths remain separate from the preserved manual Java list.
+
+## Change 004 automatic client relaunch
+
+### Bundle discovery
+
+The canonical client-instance payload is:
+
+```text
+<game-directory>/lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip
+```
+
+Discovery precedence is:
+
+1. `-Dlwjgl3ify.relauncher.runtimeBundle=<path>`;
+2. `LWJGL3IFY_RUNTIME_BUNDLE=<path>`;
+3. the canonical game-directory path above.
+
+Explicit relative paths resolve against the actual Minecraft game directory. Paths are normalized and must be readable regular files. There is no recursive ZIP scan. A missing default bundle leaves automatic mode unavailable; an invalid explicit override is fatal. The bundle remains outside `mods/`, the mod JAR, Forge patches, launcher metadata, configs, and saves.
+
+### Host selection
+
+Only Windows, macOS, and Linux are canonicalized. Architectures are limited to `x86_64` and `aarch64`; 32-bit x86/ARM, IA64, PowerPC, RISC-V, and unknown values are rejected. The detector produces canonical host values and then asks the canonical manifest for exactly one matching platform. Hashes, archive paths, and runtime versions are never duplicated in host-detection code.
+
+On macOS, an AArch64 process selects `macos-aarch64` directly. An x86_64 process performs bounded, shell-free `/usr/sbin/sysctl` probes for Rosetta translation and ARM64 hardware. Confirmed Rosetta or Apple Silicon selects AArch64; confirmed Intel selects x86_64; unavailable or inconclusive probes conservatively retain the process architecture and log the reason.
+
+On Windows, `PROCESSOR_ARCHITEW6432` and `PROCESSOR_ARCHITECTURE` are inspected through an injectable environment map. Explicit ARM64 evidence selects `windows-aarch64`, including an AMD64 process under emulation. IA64 and 32-bit Windows are unsupported; conflicting non-ARM evidence falls back conservatively to the supported process architecture with a diagnostic.
+
+On Linux, `getconf GNU_LIBC_VERSION` is executed directly with bounded output and timeout. Only confidently established glibc hosts are eligible. musl, missing probes, timeouts, and malformed output leave automatic mode unavailable so the manual Java path remains available.
+
+### Installation and launch selection
+
+When enabled and available, `AutomaticRuntimeCoordinator` loads the canonical classpath manifest, detects the host, selects the manifest platform, and invokes the unchanged Change 003 `RuntimeInstaller` with the normalized bundle, explicit platform ID, and the existing lwjgl3ify OS cache root. `lwjgl3ify.relauncher.runtimeCacheRoot` exists only as a development/diagnostic cache override. The result is validated again by `JavaLaunchSelection`. Bundled executables must remain inside the validated installation, be regular files, and be executable on Unix. Windows direct-log mode uses `java.exe`; the existing GUI/stub mode uses `javaw.exe`. macOS and Linux use `bin/java`.
+
+The effective bundled selection is held only for the current process. `javaInstallationsCache` and `javaInstallation` remain the user's manual recovery list and index; no managed path is inserted or persisted there. Child diagnostics include only `lwjgl3ify.relauncher.managedRuntime`, `lwjgl3ify.relauncher.managedPlatform`, and `lwjgl3ify.relauncher.managedRuntimeVersion`. They contain no user path or secret and do not replace installer validation. The existing RFB guard remains authoritative, with an additional fatal legacy-loop diagnostic.
+
+### Settings and recovery
+
+`useBundledJava` defaults to `true` for old configurations that lack the field. Existing memory, GC, custom JVM option, debug, logging, hidden-settings, and manual Java fields remain intact. Null arrays, a null GC, and an out-of-range Java index are normalized without discarding valid user settings. Malformed JSON fails with its path and is not silently replaced.
+
+A normal successful automatic launch skips the settings dialog. The explicit decision model distinguishes proceed, show settings, and cancel, so `hideSettingsOnLaunch=true` can continue with a valid manual selection instead of silently exiting. Closing settings cancels; Run proceeds. Forced settings shows packaged-runtime status and keeps all manual controls usable.
+
+Recovery overrides:
+
+```text
+-Dlwjgl3ify.relauncher.disableBundledJava=true
+-Dlwjgl3ify.relauncher.forceSettings=true
+```
+
+The disable override bypasses discovery/installation for one launch without deleting a managed runtime or rewriting unrelated config. The force override opens settings even when the managed runtime is ready. A present corrupt/mismatched bundle, checksum failure, extraction failure, lock timeout, invalid installation, unavailable Java executable, or process launch failure fails closed with a recovery hint; it does not silently launch an arbitrary Java.
+
+### Progress and failure reporting
+
+Automatic preparation runs off the Swing event-dispatch thread. A delayed modeless indeterminate dialog appears only when preparation takes long enough to be noticeable, so cache reuse does not flash a progress window. Worker failures return to the main error path. Logs report bundle source, detected host, selected platform, installed/reused state, Java home, and executable without listing extracted files or printing complete Minecraft authentication arguments.
+
+### Development and verification tasks
+
+The large payload remains opt-in:
+
+```bash
+./gradlew --no-daemon stageBundledJavaForRelauncher \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+
+./gradlew --no-daemon verifyAutomaticJavaRuntime \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip" \
+  -PwdgJavaRuntimePlatform=macos-aarch64
+
+./gradlew --no-daemon packageBundledJavaClient \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+
+./gradlew --no-daemon verifyBundledJavaClientPackage \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+```
+
+`stageBundledJavaForRelauncher` copies the normalized bundle byte-for-byte to the canonical development game-directory path without deleting unrelated run data. `verifyAutomaticJavaRuntime` uses isolated build directories, invokes production coordination twice, executes only a runtime compatible with the current host, and checks Java feature 21, runtime `21.0.11`, Temurin/Adoptium identity, selected architecture, and reuse. All six platforms remain statically validated; cross-platform binaries are not falsely reported as executed.
+
+`runClientWithRelauncher` depends on staging only when `wdgJavaRuntimeBundle` is supplied. Optional smoke properties are `wdgRelauncherGameDirectory`, `wdgRelauncherRuntimeCacheRoot`, `wdgRelauncherForceSettings`, and `wdgRelauncherDisableBundledJava`. Set the first two to isolated paths so the production-like smoke does not touch the ordinary development game directory or managed-runtime cache. Ordinary `build`, `check`, `test`, `runClient`, and `runServer` do not generate the 283 MB normalized bundle.
+
+### Client root-overlay package
+
+`packageBundledJavaClient` uses the complete reobfuscated primary mod JAR produced from the shaded intermediate and creates:
+
+```text
+build/distributions/lwjgl3ify-wdg-<version>-client-with-java21.zip
+└── lwjgl3ify-wdg-client/
+    ├── INSTALL.txt
+    ├── mods/
+    │   └── <complete lwjgl3ify client mod jar>
+    └── lwjgl3ify/
+        └── runtime/
+            └── lwjgl3ify-wdg-java21-runtimes.zip
+```
+
+The `-dev.jar` shadow intermediate is never packaged. The normalized bundle is stored byte-for-byte and its six nested runtime archives remain packed. The verifier requires one top-level directory, one complete mod JAR, one normalized bundle, no duplicate/case-colliding paths, no Finder/build/source metadata, all required relauncher/installer/manifest/metadata classes and resources, relocated Commons Compress/IO/Codec, and no Temurin payload in the mod JAR. A generated client package is normally 280+ MB; a macOS AArch64 extracted validation runtime is roughly 158 MB. The ordinary mod JAR remains small.
+
+This overlay is not a complete Distant Horizons modpack. Distant Horizons source, dependencies, configuration, gameplay, publishing, and server work remain later bounded changes.
+
+## Production-like development relaunch
+
+`runClientWithRelauncher` deliberately does not inherit the complete Gradle development runtime. Its Java 8 parent uses a minimal classpath containing lwjgl3ify, Minecraft development bootstrap support, and the UniMixins dependency required by lwjgl3ify itself. Optional test mods such as NEI, CodeChickenCore, GTNHLib, and GTNHExtLib are excluded from this smoke and remain optional development conveniences.
+
+The Java 21 child uses the same relauncher-owned Minecraft, Forge, LWJGL, and launcher libraries as a packaged launch. Only the local reobfuscated dirty lwjgl3ify JAR and the explicit UniMixins smoke support JAR are added to that child, together with the Mixin tweaker. This avoids leaking deobfuscated Minecraft JARs, ForgeGradle tweakers, or alternate LWJGL versions across the Java handoff while still testing the current local build.
+
+## Change 004h verified production artifact and supervised smoke
+
+The complete client mod is the single unclassified output of `reobfJar`. The plain `jar` output is the `dev-preshadow` intermediate and `shadowJar` is the `dev` development shadow; neither is valid against the real obfuscated Minecraft client. `productionModArtifact` is the one explicit Gradle provider reused by `verifyProductionModArtifact`, `runClientWithRelauncher`, `packageBundledJavaClient`, and packaged-client verification. No consumer scans `build/libs`, sorts filenames, or chooses a JAR by timestamp.
+
+RetroFuturaGradle's Mixin annotation processor writes `build/tmp/mixins/mixins.lwjgl3ify.refmap.json` and `build/tmp/mixins/mixins.srg`. Change 004h declares the generated refmap as a semantic input of `processResources`, `shadowJar`, and `reobfJar`, preventing an old final JAR from remaining up to date after the refmap changes. `verifyProductionModArtifact` then requires the final JAR refmap to be byte-identical to the current generated refmap. It parses the `searge` environment, resolves `MixinMinecraft_Display`, derives the MCP-to-SRG and Notch-to-SRG chain from RFG's generated mappings, and inspects the real production Minecraft client bytecode. The mapped owner and display-update method must exist, and that method must contain exactly one access to the mapped boolean fullscreen field. The injection remains required; it is not weakened or bypassed.
+
+Run the verifier directly:
+
+```bash
+./gradlew --no-daemon verifyProductionModArtifact
+```
+
+Its metadata is written to `build/verification/production-mod-artifact.properties`. The task logs the exact artifact path, archive size, production JAR SHA-256, refmap SHA-256, resolved SRG method/field, and mapped production owner. `verifyBundledJavaClientPackage` additionally proves the packaged mod JAR has the same SHA-256 as this verified output.
+
+`runClientWithRelauncher` forces the direct supervised mode only for this Gradle smoke. The Java 8 parent remains attached, streams stay inherited, and it waits for the actual Java 21 Minecraft child. Normal close returns zero; any child failure is returned through `runtimeExit` so Gradle fails instead of printing a false success. The normal GUI/stub mode remains non-circular: the legacy parent exits after the readiness handshake, while the Java 17 stub waits for its actual Java 21 child and exits with that result. The already-exited legacy parent cannot retroactively receive the stub result.
+
+The deterministic process regression is:
+
+```bash
+./gradlew --no-daemon verifyRelauncherChildExitPropagation
+```
+
+`runRelauncherChildExitFailure` is deliberately expected to fail with child exit code 37. Use the documented wrapper in `COMPILING.md`; a raw invocation must not report `BUILD SUCCESSFUL`.

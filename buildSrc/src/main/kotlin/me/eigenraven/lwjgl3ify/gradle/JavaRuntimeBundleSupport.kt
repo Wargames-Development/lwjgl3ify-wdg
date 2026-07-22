@@ -556,7 +556,7 @@ internal object JavaRuntimeBundlePackager {
         }
     }
 
-    private fun verifyPackagedBundle(
+    fun verifyPackagedBundle(
         manifest: JavaRuntimeManifest,
         manifestFile: File,
         outputFile: File,

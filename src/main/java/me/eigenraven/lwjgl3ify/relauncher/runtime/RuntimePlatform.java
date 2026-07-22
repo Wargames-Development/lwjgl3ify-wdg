@@ -3,6 +3,7 @@ package me.eigenraven.lwjgl3ify.relauncher.runtime;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /** Immutable platform record from the canonical packaged-runtime manifest. */
 public final class RuntimePlatform {
@@ -10,6 +11,9 @@ public final class RuntimePlatform {
     private final String id;
     private final String operatingSystem;
     private final String architecture;
+    private final Set<String> operatingSystemAliases;
+    private final Set<String> architectureAliases;
+    private final String libc;
     private final String normalizedBundlePath;
     private final String archiveType;
     private final long sizeBytes;
@@ -21,13 +25,19 @@ public final class RuntimePlatform {
     private final String releaseFileRelativePath;
     private final Map<String, String> expectedReleaseProperties;
 
-    RuntimePlatform(String id, String operatingSystem, String architecture, String normalizedBundlePath,
-        String archiveType, long sizeBytes, String sha256, String archiveRoot, String javaHomeRelativePath,
-        String javaExecutableRelativePath, String windowsGuiExecutableRelativePath, String releaseFileRelativePath,
+    RuntimePlatform(String id, String operatingSystem, String architecture, Set<String> operatingSystemAliases,
+        Set<String> architectureAliases, String libc, String normalizedBundlePath, String archiveType, long sizeBytes,
+        String sha256, String archiveRoot, String javaHomeRelativePath, String javaExecutableRelativePath,
+        String windowsGuiExecutableRelativePath, String releaseFileRelativePath,
         Map<String, String> expectedReleaseProperties) {
         this.id = id;
         this.operatingSystem = operatingSystem;
         this.architecture = architecture;
+        this.operatingSystemAliases = Collections
+            .unmodifiableSet(new java.util.LinkedHashSet<String>(operatingSystemAliases));
+        this.architectureAliases = Collections
+            .unmodifiableSet(new java.util.LinkedHashSet<String>(architectureAliases));
+        this.libc = libc;
         this.normalizedBundlePath = normalizedBundlePath;
         this.archiveType = archiveType;
         this.sizeBytes = sizeBytes;
@@ -51,6 +61,18 @@ public final class RuntimePlatform {
 
     public String getArchitecture() {
         return architecture;
+    }
+
+    public Set<String> getOperatingSystemAliases() {
+        return operatingSystemAliases;
+    }
+
+    public Set<String> getArchitectureAliases() {
+        return architectureAliases;
+    }
+
+    public String getLibc() {
+        return libc;
     }
 
     public String getNormalizedBundlePath() {

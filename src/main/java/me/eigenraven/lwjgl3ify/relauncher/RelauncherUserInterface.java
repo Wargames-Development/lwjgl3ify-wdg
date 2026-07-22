@@ -2,6 +2,7 @@ package me.eigenraven.lwjgl3ify.relauncher;
 
 import java.awt.Dialog;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,6 +35,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Throwables;
 
+import me.eigenraven.lwjgl3ify.relauncher.runtime.AutomaticRuntimeResult;
+
 /** Implements the UI components of the relauncher */
 /*
  * Dev note on recompiling forms:
@@ -46,7 +50,6 @@ public class RelauncherUserInterface {
 
     private final Relauncher relauncher;
     private boolean swingInitialized = false;
-    public boolean runClicked = false;
 
     public RelauncherUserInterface(Relauncher relauncher) {
         this.relauncher = relauncher;
@@ -87,7 +90,9 @@ public class RelauncherUserInterface {
                 SwingUtilities.invokeLater(runnable);
             }
         } catch (InterruptedException e) {
-            // cancelled
+            Thread.currentThread()
+                .interrupt();
+            throw new RuntimeException("Interrupted while waiting for the Swing event thread", e);
         } catch (InvocationTargetException e) {
             throw Throwables.propagate(e.getCause());
         }
@@ -179,19 +184,96 @@ public class RelauncherUserInterface {
         }
     }
 
-    public void startSettingsIfNeeded() {
-        if (RelauncherConfig.config.hideSettingsOnLaunch) {
-            // TODO: Show a countdown and add a way to show settings again
-            return;
+    public AutomaticRuntimeResult prepareAutomaticRuntime(Callable<AutomaticRuntimeResult> preparation) {
+        if (preparation == null) throw new NullPointerException("preparation");
+        if (GraphicsEnvironment.isHeadless()) {
+            try {
+                return preparation.call();
+            } catch (Exception exception) {
+                throw Throwables.propagate(exception);
+            }
         }
+
+        final AtomicReference<AutomaticRuntimeResult> result = new AtomicReference<>();
+        final AtomicReference<Throwable> failure = new AtomicReference<>();
+        final Thread worker = new Thread(() -> {
+            try {
+                result.set(preparation.call());
+            } catch (Throwable throwable) {
+                failure.set(throwable);
+            }
+        }, "Packaged Java preparation");
+        worker.setContextClassLoader(RelauncherUserInterface.class.getClassLoader());
+        worker.setDaemon(true);
+        worker.start();
+
+        final AtomicReference<JDialog> progress = new AtomicReference<>();
+        try {
+            worker.join(300L);
+            if (worker.isAlive()) {
+                invokeOnSwingThread(true, () -> {
+                    initSwingIfNeeded();
+                    final JDialog progressDialog = new JDialog(
+                        null,
+                        "Preparing packaged Java",
+                        Dialog.ModalityType.MODELESS);
+                    progressDialog.setMinimumSize(new Dimension(480, 128));
+                    progressDialog.setSize(new Dimension(480, 128));
+                    progressDialog.setLocationRelativeTo(null);
+                    progressDialog.setResizable(false);
+                    progressDialog.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+                    final ProgressDialog contents = new ProgressDialog();
+                    contents.statusLabel.setText("Preparing packaged Java 21 for the first launch...");
+                    contents.filesLabel.setText("The validated runtime will be reused on later launches.");
+                    contents.progressBar.setIndeterminate(true);
+                    contents.cancelButton.setVisible(false);
+                    progressDialog.add(contents.panel);
+                    progress.set(progressDialog);
+                    progressDialog.setVisible(true);
+                });
+            }
+            while (worker.isAlive()) {
+                worker.join(100L);
+            }
+        } catch (InterruptedException exception) {
+            worker.interrupt();
+            Thread.currentThread()
+                .interrupt();
+            throw new RuntimeException("Interrupted while preparing packaged Java", exception);
+        } finally {
+            final JDialog progressDialog = progress.get();
+            if (progressDialog != null) {
+                invokeOnSwingThread(true, progressDialog::dispose);
+            }
+        }
+        if (failure.get() != null) throw Throwables.propagate(failure.get());
+        return result.get();
+    }
+
+    public void showAutomaticRuntimeFailure(AutomaticRuntimeResult automatic) {
+        if (GraphicsEnvironment.isHeadless()) return;
+        invokeOnSwingThread(true, () -> {
+            initSwingIfNeeded();
+            JOptionPane.showMessageDialog(
+                null,
+                automatic.getMessage() + "\n\nRecovery: launch once with -D"
+                    + me.eigenraven.lwjgl3ify.relauncher.runtime.AutomaticRuntimeCoordinator.DISABLE_PROPERTY
+                    + "=true to use manual Java selection.",
+                "Packaged Java preparation failed",
+                JOptionPane.ERROR_MESSAGE);
+        });
+    }
+
+    public LaunchDecision showSettings(AutomaticRuntimeResult automatic) {
+        final SettingsLaunchController launchController = new SettingsLaunchController();
         invokeOnSwingThread(true, () -> {
             initSwingIfNeeded();
             final JDialog settingsDialog = new JDialog(
                 null,
                 "Lwjgl3ify settings",
                 Dialog.ModalityType.APPLICATION_MODAL);
-            settingsDialog.setMinimumSize(new Dimension(800, 600));
-            settingsDialog.setSize(new Dimension(800, 600));
+            settingsDialog.setMinimumSize(new Dimension(800, 650));
+            settingsDialog.setSize(new Dimension(800, 650));
             settingsDialog.setLocationRelativeTo(null);
             settingsDialog.setResizable(true);
             settingsDialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -200,7 +282,6 @@ public class RelauncherUserInterface {
             contents.loadTranslations();
             settingsDialog.add(contents.rootPanel);
 
-            // Configure memory sliders
             final long totalSystemMemory = getTotalMemoryBytes();
             final int totalSystemMemoryMB = (int) ((totalSystemMemory + (1024 * 1024) - 1) / (1024 * 1024));
             contents.optMinMemory.setMaximum(totalSystemMemoryMB);
@@ -213,19 +294,19 @@ public class RelauncherUserInterface {
             contents.optMaxMemory.setLabelTable(null);
             contents.optMinMemory.setMajorTickSpacing(memTickSpacing);
             contents.optMaxMemory.setMajorTickSpacing(memTickSpacing);
-
-            // Update labels
             contents.labelMinJavaVer
                 .setText(String.format(contents.translations.getString(TranslationsBundle.KEY_MIN_MOD_JAVA), 17));
 
-            // Set settings values
             final RelauncherConfig.ConfigObject initCfg = RelauncherConfig.config;
             final DefaultComboBoxModel<String> modelJavaPaths = new DefaultComboBoxModel<>(
                 initCfg.javaInstallationsCache.clone());
             contents.comboJavaExecutable.setModel(modelJavaPaths);
-            if (modelJavaPaths.getSize() > 0) {
+            if (modelJavaPaths.getSize() > 0 && initCfg.javaInstallation >= 0
+                && initCfg.javaInstallation < modelJavaPaths.getSize()) {
                 contents.comboJavaExecutable.setSelectedIndex(initCfg.javaInstallation);
             }
+            contents.optUseBundledJava.setSelected(initCfg.useBundledJava);
+            contents.lblBundledStatus.setText(automatic.getMessage());
             contents.optMinMemory.setValue(initCfg.minMemoryMB);
             contents.optMaxMemory.setValue(initCfg.maxMemoryMB);
             contents.optGC.setModel(new GCComboModel());
@@ -243,12 +324,8 @@ public class RelauncherUserInterface {
             contents.optRfbDumpClasses.setSelected(initCfg.rfbDumpClasses);
             contents.optRfbDumpTransformers.setSelected(initCfg.rfbDumpPerTransformer);
             contents.optHideOnFutureLaunches.setSelected(initCfg.hideSettingsOnLaunch);
-            // do not show for now
-            contents.optHideOnFutureLaunches.setEnabled(false);
-            contents.optHideOnFutureLaunches.setVisible(false);
 
             refreshJavaInstalls(contents);
-            saveConfig(contents);
 
             settingsDialog.addWindowListener(new WindowAdapter() {
 
@@ -258,6 +335,7 @@ public class RelauncherUserInterface {
                 }
             });
 
+            contents.buttonRefreshJavas.addActionListener(al -> refreshJavaInstalls(contents));
             contents.buttonAddJava.addActionListener(al -> {
                 final JFileChooser jfc = new JFileChooser();
                 jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -267,9 +345,7 @@ public class RelauncherUserInterface {
 
                     @Override
                     public boolean accept(File f) {
-                        if (f == null) {
-                            return false;
-                        }
+                        if (f == null) return false;
                         final String name = f.getName();
                         return !f.isFile() || name.equalsIgnoreCase("java")
                             || name.equalsIgnoreCase("javaw")
@@ -284,8 +360,8 @@ public class RelauncherUserInterface {
                 };
                 jfc.addChoosableFileFilter(fileFilter);
                 jfc.setFileFilter(fileFilter);
-                final int result = jfc.showOpenDialog(settingsDialog);
-                if (result == JFileChooser.APPROVE_OPTION) {
+                final int resultValue = jfc.showOpenDialog(settingsDialog);
+                if (resultValue == JFileChooser.APPROVE_OPTION) {
                     final String path = jfc.getSelectedFile()
                         .getAbsolutePath();
                     final DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) contents.comboJavaExecutable
@@ -306,13 +382,14 @@ public class RelauncherUserInterface {
             });
 
             contents.buttonRun.addActionListener(al -> {
-                runClicked = true;
                 saveConfig(contents);
+                launchController.proceed();
                 settingsDialog.dispose();
             });
 
             settingsDialog.setVisible(true);
         });
+        return launchController.getDecision();
     }
 
     private static void refreshJavaInstalls(SettingsDialog contents) {
@@ -358,6 +435,7 @@ public class RelauncherUserInterface {
         initCfg.rfbDumpClasses = contents.optRfbDumpClasses.isSelected();
         initCfg.rfbDumpPerTransformer = contents.optRfbDumpTransformers.isSelected();
         initCfg.hideSettingsOnLaunch = contents.optHideOnFutureLaunches.isSelected();
+        initCfg.useBundledJava = contents.optUseBundledJava.isSelected();
         RelauncherConfig.save();
     }
 

@@ -33,10 +33,17 @@ public final class JvmLocator {
     public static List<Path> detectJavaInstalls(List<String> cache) {
         final ArrayList<Path> out = new ArrayList<>();
 
+        if (cache == null) cache = Collections.emptyList();
         for (final String cacheEntry : cache) {
-            final Path p = Paths.get(cacheEntry);
-            if (Files.isRegularFile(p)) {
-                out.add(p);
+            if (cacheEntry == null || cacheEntry.trim()
+                .isEmpty()) continue;
+            try {
+                final Path p = Paths.get(cacheEntry);
+                if (Files.isRegularFile(p)) {
+                    out.add(p);
+                }
+            } catch (RuntimeException exception) {
+                Relauncher.logger.warn("Ignoring invalid cached Java path", exception);
             }
         }
 

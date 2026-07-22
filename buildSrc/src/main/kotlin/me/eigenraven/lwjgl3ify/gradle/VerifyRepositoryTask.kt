@@ -69,9 +69,17 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeBundleTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageJavaRuntimeBundleTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyJavaRuntimeInstallationTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/StageBundledJavaForRelauncherTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyAutomaticJavaRuntimeTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageBundledJavaClientTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyBundledJavaClientPackageTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/ProductionArtifactSupport.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyProductionModArtifactTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRelauncherChildExitPropagationTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRepositoryTask.kt",
             "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VersionJsonTask.kt",
             "buildSrc/src/test/kotlin/me/eigenraven/lwjgl3ify/gradle/JavaRuntimeContractTest.kt",
+            "buildSrc/src/test/kotlin/me/eigenraven/lwjgl3ify/gradle/ProductionArtifactSupportTest.kt",
             "docs/BUNDLED_JAVA.md",
             "gradle.properties",
             "dependencies.gradle",
@@ -110,8 +118,40 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleReader.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeArchiveExtractor.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstaller.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHost.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetectionException.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetector.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleLocator.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeCoordinator.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeResult.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelection.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelector.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/ChildProcessSupervisor.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/LaunchDecision.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/LaunchDecisionPolicy.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherUserInterface.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/TranslationsBundle.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/TranslationsBundle_pl_PL.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchController.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.form",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerSmokeMain.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeSmokeMain.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetectorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeManifestSelectionTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleLocatorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeCoordinatorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelectionTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelectorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/LaunchDecisionPolicyTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/ManagedRuntimePropertiesTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/ChildProcessSupervisorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/ProcessExitFixtureMain.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherChildExitSmokeMain.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfigTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherCommandTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchControllerTest.java",
             "src/forgePatches/ScriptEngineServices.txt",
             "src/forgePatches/lwjgl3ify-forgePatches-version.txt",
             "src/main/java/me/eigenraven/lwjgl3ify/core/Lwjgl3ifyCoremod.java",
@@ -165,7 +205,8 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             val distributionUrl = properties?.getProperty("distributionUrl")?.replace("\\:", ":")
             val expectedUrl = "https://services.gradle.org/distributions/gradle-9.3.1-bin.zip"
             if (distributionUrl != expectedUrl) {
-                failures += "Gradle wrapper distribution must remain $expectedUrl but was ${distributionUrl ?: "missing"}"
+                failures +=
+                    "Gradle wrapper distribution must remain $expectedUrl but was ${distributionUrl ?: "missing"}"
             }
         }
 
@@ -273,6 +314,10 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeInstallationTask",
+                "import me.eigenraven.lwjgl3ify.gradle.StageBundledJavaForRelauncherTask",
+                "import me.eigenraven.lwjgl3ify.gradle.VerifyAutomaticJavaRuntimeTask",
+                "import me.eigenraven.lwjgl3ify.gradle.PackageBundledJavaClientTask",
+                "import me.eigenraven.lwjgl3ify.gradle.VerifyBundledJavaClientPackageTask",
                 "import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask",
                 "tasks.register<VerifyJavaRuntimeBundleTask>(\"verifyJavaRuntimeBundle\")",
                 "tasks.register<PackageJavaRuntimeBundleTask>(\"packageJavaRuntimeBundle\")",
@@ -281,6 +326,17 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "wdgJavaRuntimePlatform",
                 "RuntimeInstallerSmokeMain",
                 "runtime-installation-smoke",
+                "automatic-runtime-smoke",
+                "lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip",
+                "wdgRelauncherRuntimeCacheRoot",
+                "wdgRelauncherForceSettings",
+                "wdgRelauncherDisableBundledJava",
+                "lwjgl3ify.relauncher.additionalClasspath",
+                "lwjgl3ify.relauncher.additionalTweakers",
+                "relauncherSmokeChildSupport",
+                "relauncherSmokeRuntime",
+                "client-with-java21.zip",
+                "modJar.set(productionModArtifact)",
                 "runtimeInstallerEmbedded",
                 "compileClasspath += runtimeInstallerEmbedded",
                 "runtimeClasspath += runtimeInstallerEmbedded",
@@ -319,6 +375,104 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "fileSystemOperations.delete",
             ),
             "configuration-cache-safe runtime installation smoke task",
+            failures,
+        )
+
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/StageBundledJavaForRelauncherTask.kt"),
+            listOf("abstract class StageBundledJavaForRelauncherTask", "@get:InputFile", "@get:OutputFile", "@TaskAction"),
+            "configuration-cache-safe bundled Java staging task",
+            failures,
+        )
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyAutomaticJavaRuntimeTask.kt"),
+            listOf(
+                "abstract class VerifyAutomaticJavaRuntimeTask",
+                "ExecOperations",
+                "FileSystemOperations",
+                "@get:LocalState",
+                "@TaskAction",
+            ),
+            "configuration-cache-safe automatic Java execution task",
+            failures,
+        )
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageBundledJavaClientTask.kt"),
+            listOf("abstract class PackageBundledJavaClientTask", "@get:InputFile", "@get:OutputFile", "REPRODUCIBLE_TIME"),
+            "configuration-cache-safe client overlay packaging task",
+            failures,
+        )
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyBundledJavaClientPackageTask.kt"),
+            listOf(
+                "abstract class VerifyBundledJavaClientPackageTask",
+                "AutomaticRuntimeCoordinator.class",
+                "JavaRuntimeBundlePackager.verifyPackagedBundle",
+                "expectedModJar",
+                "Packaged client mod JAR differs from the verified production artifact",
+            ),
+            "bundled Java client package verifier",
+            failures,
+        )
+
+        checkFileContains(
+            relative("build.gradle.kts"),
+            listOf(
+                "val productionModArtifact = tasks.reobfJar.flatMap { it.archiveFile }",
+                "verifyProductionModArtifact",
+                "generatedMixinRefmap",
+                "expectedProductionArtifact",
+                "expectedProductionSha256",
+                "supervisedLaunch",
+                "verifyRelauncherChildExitPropagation",
+                "runRelauncherChildExitFailure",
+            ),
+            "verified production artifact and supervised smoke wiring",
+            failures,
+        )
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyProductionModArtifactTask.kt"),
+            listOf(
+                "@CacheableTask",
+                "ProductionArtifactVerifier.verify",
+                "generatedRefmap",
+                "productionMinecraftJar",
+                "canonicalRuntimeManifest",
+                "verificationMetadata",
+            ),
+            "production artifact verifier task",
+            failures,
+        )
+        checkFileContains(
+            relative("buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/ProductionArtifactSupport.kt"),
+            listOf(
+                "MixinMinecraft_Display",
+                "environment=searge",
+                "verifyProductionBytecode",
+                "fieldTargets != 1",
+                "runtime manifest differs from the canonical manifest",
+                "must contain exactly one",
+                "PRODUCTION_REFMAP",
+            ),
+            "semantic production refmap verification",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/ChildProcessSupervisor.java"),
+            listOf("process.waitFor()", "Thread.currentThread()", "process.destroyForcibly()"),
+            "child process supervision seam",
+            failures,
+        )
+        checkFileContains(
+            relative("src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelauncherStubMain.java"),
+            listOf("ChildProcessSupervisor.waitFor(child)", "System.exit(new RelauncherStubMain().run(args))"),
+            "stub child result propagation",
+            failures,
+        )
+        checkFileContains(
+            relative("src/test/java/me/eigenraven/lwjgl3ify/relauncher/ChildProcessSupervisorTest.java"),
+            listOf("preservesZeroAndNonzeroExitCodes", "interruptionPreservesFlagAndTerminatesChild"),
+            "child process supervision tests",
             failures,
         )
 
@@ -391,30 +545,165 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             listOf(
                 "Change 003 secure installer boundary",
                 ".lwjgl3ify-runtime-install.json",
-                "verifyJavaRuntimeInstallation",
-                "Production Minecraft startup does **not** invoke",
+                "## Change 004 automatic client relaunch",
+                "lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip",
+                "lwjgl3ify.relauncher.disableBundledJava",
+                "lwjgl3ify.relauncher.forceSettings",
+                "verifyAutomaticJavaRuntime",
+                "packageBundledJavaClient",
+                "Distant Horizons",
             ),
-            "bundled Java installer documentation",
+            "bundled Java automatic-runtime documentation",
             failures,
         )
-        listOf(
-            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/Relauncher.java",
-            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/JvmLocator.java",
-            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java",
-            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherUserInterface.java",
-            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/Lwjgl3ifyRelauncherTweaker.java",
-        ).forEach { deferredPath ->
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/Relauncher.java"),
+            listOf(
+                "new AutomaticRuntimeCoordinator()",
+                "LaunchDecisionPolicy",
+                ".decide(",
+                "createBootstrapCommand",
+                "MANAGED_RUNTIME_PROPERTY",
+                "runtimeCacheRoot",
+                "Starting relaunched process {}",
+                "with Java source=",
+            ),
+            "production automatic runtime relaunch wiring",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleLocator.java"),
+            listOf(
+                "lwjgl3ify.relauncher.runtimeBundle",
+                "LWJGL3IFY_RUNTIME_BUNDLE",
+                "lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip",
+            ),
+            "canonical runtime bundle locator",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetector.java"),
+            listOf(
+                "/usr/sbin/sysctl",
+                "PROCESSOR_ARCHITEW6432",
+                "PROCESSOR_ARCHITECTURE",
+                "getconf",
+                "GNU_LIBC_VERSION",
+            ),
+            "bounded cross-platform host detector",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java"),
+            listOf("useBundledJava = true", "javaInstallationsCache == null", "garbageCollector == null"),
+            "backward-compatible relauncher config",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.form"),
+            listOf("optUseBundledJava", "lblBundledStatus"),
+            "packaged Java settings form",
+            failures,
+        )
+        checkFileDoesNotContain(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/Lwjgl3ifyRelauncherTweaker.java"),
+            listOf("RuntimeInstaller", "AutomaticRuntimeCoordinator"),
+            "dedicated tweaker boundary",
+            failures,
+        )
+        listOf("build.gradle.kts", "dependencies.gradle").forEach { dependencyPath ->
             checkFileDoesNotContain(
-                relative(deferredPath),
-                listOf(
-                    "relauncher.runtime.RuntimeInstaller",
-                    "new RuntimeInstaller",
-                    "verifyJavaRuntimeInstallation",
-                ),
-                "deferred automatic runtime wiring in $deferredPath",
+                relative(dependencyPath),
+                listOf("DistantHorizons", "Distant Horizons", "distanthorizons"),
+                "deferred Distant Horizons dependency boundary in $dependencyPath",
                 failures,
             )
         }
+
+        checkFileContains(
+            relative("build.gradle.kts"),
+            listOf(
+                "classpath(relauncherSmokeRuntime)",
+                "files(productionModArtifact, relauncherSmokeChildSupport)",
+                "ProviderToStringWrapper(smokeChildClasspathString)",
+            ),
+            "production-like relauncher smoke isolation",
+            failures,
+        )
+        checkFileContains(
+            relative("dependencies.gradle"),
+            listOf("relauncherSmokeChildSupport('io.github.legacymoddingmc:unimixins:0.3.1:dev') { transitive = false }"),
+            "required UniMixins relauncher smoke support",
+            failures,
+        )
+        checkFileDoesNotContain(
+            relative("build.gradle.kts"),
+            listOf(
+                "lwjgl3ify.relauncher.inheritParentClasspath",
+                "lwjgl3ify.relauncher.inheritParentTweakers",
+            ),
+            "removed full parent development inheritance",
+            failures,
+        )
+        checkFileDoesNotContain(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/mixins/early/game/MixinMinecraft_Display.java"),
+            listOf("require = 0", "require=0"),
+            "required MixinMinecraft_Display injection",
+            failures,
+        )
+        checkFileDoesNotContain(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/Relauncher.java"),
+            listOf(
+                "System.getProperty(\"java.class.path\"",
+                "Launch.blackboard.get(\"Tweaks\")",
+            ),
+            "isolated production-like child launch",
+            failures,
+        )
+
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/Relauncher.java"),
+            listOf(
+                "ADDITIONAL_CLASSPATH_PROPERTY",
+                "appendExistingClasspathEntries",
+                "explicitly configured development support classpath entries",
+                "ADDITIONAL_TWEAKERS_PROPERTY",
+                "appendConfiguredTweakerArguments",
+                "explicitly configured development support tweakers",
+            ),
+            "production-like development relaunch support",
+            failures,
+        )
+        checkFileContains(
+            relative("src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherCommandTest.java"),
+            listOf(
+                "developmentClasspathInheritanceIsGenericOrderedAndDeduplicated",
+                "appendExistingClasspathEntries",
+                "configuredDevelopmentTweakersAreOrderedAndDeduplicated",
+                "appendConfiguredTweakerArguments",
+            ),
+            "production-like development relaunch regression test",
+            failures,
+        )
+
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/Downloader.java"),
+            listOf(
+                "isBundledLwjgl3ifyArtifact(elGav)",
+                "static boolean isBundledLwjgl3ifyArtifact(final String coordinates)",
+            ),
+            "embedded lwjgl3ify artifact download exclusion",
+            failures,
+        )
+        checkFileContains(
+            relative("src/test/java/me/eigenraven/lwjgl3ify/relauncher/DownloaderTest.java"),
+            listOf(
+                "bundledLwjgl3ifyArtifactsNeverRequireNetworkDownload",
+                "com.github.GTNewHorizons:lwjgl3ify:3.0.28-master.3+local:forgePatches",
+            ),
+            "embedded lwjgl3ify artifact download regression test",
+            failures,
+        )
 
         checkFileContains(
             relative("launcher-metadata/version.json"),
@@ -544,7 +833,9 @@ abstract class VerifyRepositoryTask : DefaultTask() {
         val output = outputFile.readBytes()
         outputFile.delete()
         if (process.exitValue() != 0) {
-            failures += "git ls-files failed while checking tracked-source hygiene: ${output.toString(Charsets.UTF_8).trim()}"
+            failures +=
+                "git ls-files failed while checking tracked-source hygiene: " +
+                output.toString(Charsets.UTF_8).trim()
             return
         }
 

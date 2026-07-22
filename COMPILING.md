@@ -45,6 +45,16 @@ The normal lifecycle does not require the 264 MB external input. Run these tasks
 ./gradlew --no-daemon verifyJavaRuntimeInstallation \
   -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip" \
   -PwdgJavaRuntimePlatform=macos-aarch64
+
+./gradlew --no-daemon verifyAutomaticJavaRuntime \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip" \
+  -PwdgJavaRuntimePlatform=macos-aarch64
+
+./gradlew --no-daemon packageBundledJavaClient \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+
+./gradlew --no-daemon verifyBundledJavaClientPackage \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
 ```
 
 `verifyJavaRuntimeBundle` performs cross-platform static inspection and never executes a supplied Java binary. `packageJavaRuntimeBundle` creates and verifies:
@@ -53,7 +63,7 @@ The normal lifecycle does not require the 264 MB external input. Run these tasks
 build/runtime-packages/lwjgl3ify-wdg-java21-runtimes.zip
 ```
 
-`verifyJavaRuntimeInstallation` is intentionally outside the normal lifecycle. It installs only the explicit platform into `build/runtime-installation-smoke`, validates the static runtime and completed marker, invokes the installer again to prove reuse and identical returned paths, and never executes Java.
+`verifyJavaRuntimeInstallation` is intentionally outside the normal lifecycle. It installs only the explicit platform into `build/runtime-installation-smoke`, validates the static runtime and completed marker, invokes the installer again to prove reuse and identical returned paths, and never executes Java. `verifyAutomaticJavaRuntime` stages the normalized bundle in an isolated game directory, invokes the production coordinator twice, and executes only a host-compatible packaged Java to verify Java 21, `21.0.11`, Temurin/Adoptium, architecture, and reuse. `packageBundledJavaClient` creates the root-overlay distribution under `build/distributions/`; `verifyBundledJavaClientPackage` deeply validates its mod JAR and nested normalized bundle.
 
 Full supported-platform, manifest, installer security, cache, update, and inspection details are in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md).
 
@@ -86,6 +96,7 @@ Expected output locations:
 * `build/distributions/` — `lwjgl3ify-VERSION-multimc.zip` from `mmcInstanceFiles`.
 * `build/source-packages/` — clean repository source archives created by the WDG packaging script.
 * `build/runtime-packages/` — generated normalized Java runtime bundles; never commit these artifacts.
+* `build/distributions/*-client-with-java21.zip` — opt-in root-overlay package containing exactly one complete shaded client mod JAR and the separate normalized runtime bundle.
 
 Artifact names include the version supplied by the existing Git-tag/convention build. Do not hard-code a WDG preview suffix in local scripts.
 
@@ -108,13 +119,14 @@ unzip -Z1 build/distributions/*-multimc.zip | grep -E 'mmc-pack.json|patches/|li
 ./gradlew --no-daemon runObfClient
 ./gradlew --no-daemon runObfServer
 
-# Existing experimental legacy-start/relauncher path
-./gradlew --no-daemon runClientWithRelauncher
+# Legacy Java start followed by automatic packaged-Java relaunch
+./gradlew --no-daemon runClientWithRelauncher \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
 ```
 
 The generated `runClient17`, `runClient21`, `runClient25`, `runServer17`, `runServer21`, and `runServer25` variants are deliberately disabled in this repository; the ordinary run tasks already carry the intended launcher configuration.
 
-Change 003 adds production installer source but deliberately leaves every Minecraft and launcher entry point unchanged. Its required runtime-affecting smoke is the explicit `verifyJavaRuntimeInstallation` task; ordinary client/server/relauncher smokes remain unchanged because no startup path invokes the installer. A later automatic-selection/relaunch change must add appropriate client, server, first-run, cache-hit, and relauncher smokes.
+Change 004 wires the existing installer only into the legacy client relaunch path. A successful automatic preparation skips settings, selects the packaged Java executable process-locally, and transfers to RFB. Missing default bundles or unsupported hosts may use the preserved manual path; a present corrupt bundle or failed installation stops safely. Dedicated-server behavior remains unchanged. Use `-PwdgRelauncherForceSettings=true` for the recovery UI smoke and `-PwdgRelauncherDisableBundledJava=true` for the manual-path override. Distant Horizons remains deferred.
 
 ## Clean source package
 
@@ -147,3 +159,39 @@ Independent listing check:
 ```bash
 unzip -Z1 build/source-packages/lwjgl3ify-wdg-source.zip
 ```
+
+## Change 004h production artifact validation
+
+The only production client mod provider is `productionModArtifact`, backed by `reobfJar.archiveFile`. Expected task roles are:
+
+| Task | Role | Classifier |
+| --- | --- | --- |
+| `jar` | pre-shadow development intermediate | `dev-preshadow` |
+| `shadowJar` | shaded development artifact | `dev` |
+| `reobfJar` | complete production-reobfuscated client mod | none |
+
+Never launch the first JAR found in `build/libs`, and never substitute `shadowJar` for `reobfJar` when testing the real client. Run:
+
+```bash
+./gradlew --no-daemon clean reobfJar verifyProductionModArtifact
+```
+
+The verifier compares the generated and packaged refmaps, validates the `searge` mapping for `MixinMinecraft_Display`, follows the generated MCP/SRG/Notch chain, and inspects the production client class structurally. Production-like packaging and `runClientWithRelauncher` depend on this verification and use the same concrete archive provider.
+
+Set `-PwdgRelauncherGameDirectory=/isolated/game` and `-PwdgRelauncherRuntimeCacheRoot=/isolated/cache` for production-like smoke runs; the staged bundle, config, logs, saves, and managed installation then remain isolated from the ordinary `run/` tree and normal cache.
+
+The Gradle smoke uses direct supervision so the task remains attached until Minecraft closes. A normal close succeeds; a Java 21 crash fails the Gradle task. Normal launcher GUI/stub mode has different lifecycle semantics: the stub, not the already-exited legacy process, owns and reports the modern child's final result.
+
+Run the passing regression:
+
+```bash
+./gradlew --no-daemon verifyRelauncherChildExitPropagation
+```
+
+The raw deliberate-failure task is expected to return nonzero:
+
+```bash
+./gradlew --no-daemon runRelauncherChildExitFailure
+```
+
+It is a regression only when the child reports exit 37 and Gradle itself fails. Do not add `--continue` or `ignoreExitValue` to the raw task.

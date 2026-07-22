@@ -43,6 +43,7 @@ public class RelauncherConfig {
         public GCOption garbageCollector = GCOption.G1GC;
         public String[] customOptions = new String[0];
         public boolean hideSettingsOnLaunch = false;
+        public boolean useBundledJava = true;
         // Advanced
         public boolean forwardLogs = false;
         public boolean allowDebugger = false;
@@ -84,7 +85,9 @@ public class RelauncherConfig {
 
         public String customOptionsToQuotedString() {
             final StringBuilder out = new StringBuilder();
-            for (final String arg : this.customOptions) {
+            final String[] selectedCustomOptions = this.customOptions == null ? new String[0] : this.customOptions;
+            for (final String arg : selectedCustomOptions) {
+                if (arg == null) continue;
                 final String escaped = arg.replace("\\", "\\\\")
                     .replace("\"", "\\\"");
                 if (escaped.chars()
@@ -108,7 +111,8 @@ public class RelauncherConfig {
             if (maxMemoryMB > 0) {
                 out.add("-Xmx" + maxMemoryMB + "M");
             }
-            out.addAll(Arrays.asList(garbageCollector.FLAGS));
+            GCOption selectedGarbageCollector = garbageCollector == null ? GCOption.G1GC : garbageCollector;
+            out.addAll(Arrays.asList(selectedGarbageCollector.FLAGS));
             if (allowDebugger) {
                 out.add(
                     "-agentlib:jdwp=transport=dt_socket,server=y,suspend=" + (waitForDebugger ? 'y' : 'n')
@@ -132,7 +136,8 @@ public class RelauncherConfig {
             if (rfbDumpPerTransformer) {
                 out.add("-Drfb.dumpLoadedClassesPerTransformer=true");
             }
-            for (final String arg : customOptions) {
+            String[] selectedCustomOptions = customOptions == null ? new String[0] : customOptions;
+            for (final String arg : selectedCustomOptions) {
                 if (arg == null || arg.trim()
                     .isEmpty()) {
                     continue;
@@ -148,41 +153,66 @@ public class RelauncherConfig {
         .create();
 
     public static void load() {
-        final Path gamePath = (Launch.minecraftHome == null) ? Paths.get(".") : Launch.minecraftHome.toPath();
-        final Path earlyConfigPath = gamePath.resolve("config")
-            .resolve("lwjgl3ify-relauncher.json");
+        load(configPath());
+    }
 
-        if (Files.exists(earlyConfigPath)) {
+    static void load(Path earlyConfigPath) {
+        ConfigObject loaded = new ConfigObject();
+        final boolean existingConfig = Files.exists(earlyConfigPath);
+        if (existingConfig) {
             try {
                 final String configContents = new String(Files.readAllBytes(earlyConfigPath), StandardCharsets.UTF_8);
-                config = gson.fromJson(configContents, ConfigObject.class);
+                loaded = gson.fromJson(configContents, ConfigObject.class);
+                if (loaded == null) {
+                    throw new IllegalArgumentException("configuration root is null");
+                }
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Could not read relauncher configuration at " + earlyConfigPath, e);
+            } catch (RuntimeException e) {
+                throw new RuntimeException(
+                    "Malformed relauncher configuration at " + earlyConfigPath
+                        + "; fix or move the file rather than losing existing settings",
+                    e);
             }
         }
+        normalize(loaded);
+        config = loaded;
+        if (!existingConfig) save(earlyConfigPath);
+    }
 
-        if (config.javaInstallationsCache.length > 0) {
-            config.javaInstallation = Math
-                .max(0, Math.min(config.javaInstallation, config.javaInstallationsCache.length - 1));
+    private static void normalize(ConfigObject loaded) {
+        if (loaded.javaInstallationsCache == null) loaded.javaInstallationsCache = new String[0];
+        if (loaded.customOptions == null) loaded.customOptions = new String[0];
+        if (loaded.garbageCollector == null) loaded.garbageCollector = GCOption.G1GC;
+        if (loaded.javaInstallationsCache.length == 0) {
+            loaded.javaInstallation = -1;
+        } else {
+            loaded.javaInstallation = Math
+                .max(0, Math.min(loaded.javaInstallation, loaded.javaInstallationsCache.length - 1));
         }
-
-        save();
     }
 
     public static void save() {
-        final Path gamePath = (Launch.minecraftHome == null) ? Paths.get(".") : Launch.minecraftHome.toPath();
-        final Path earlyConfigPath = gamePath.resolve("config")
-            .resolve("lwjgl3ify-relauncher.json");
+        save(configPath());
+    }
 
+    static void save(Path earlyConfigPath) {
+        normalize(config);
         final String jsonCfg = gson.toJson(config);
         try {
-            // Allow symlinks
+            // Allow the config directory itself to be a launcher-managed symlink.
             if (!Files.isDirectory(earlyConfigPath.getParent())) {
                 Files.createDirectories(earlyConfigPath.getParent());
             }
             Files.write(earlyConfigPath, jsonCfg.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not write relauncher configuration at " + earlyConfigPath, e);
         }
+    }
+
+    private static Path configPath() {
+        final Path gamePath = (Launch.minecraftHome == null) ? Paths.get(".") : Launch.minecraftHome.toPath();
+        return gamePath.resolve("config")
+            .resolve("lwjgl3ify-relauncher.json");
     }
 }

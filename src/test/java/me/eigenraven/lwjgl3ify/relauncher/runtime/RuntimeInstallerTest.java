@@ -692,6 +692,7 @@ public class RuntimeInstallerTest {
             + "      \"architecture\": \""
             + arch
             + "\",\n"
+            + ("linux".equals(os) ? "      \"libc\": \"gnu\",\n" : "")
             + "      \"normalizedBundlePath\": \""
             + normalizedPath
             + "\",\n"

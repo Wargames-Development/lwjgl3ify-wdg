@@ -6,6 +6,8 @@ import java.io.StringWriter;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
+import me.eigenraven.lwjgl3ify.relauncher.ChildProcessSupervisor;
+
 /**
  * Run with arguments of [parentPid, show console [true/false], java binary, java arguments].
  * Needs modern Java to access the ProcessHandle API.
@@ -14,10 +16,10 @@ public class RelauncherStubMain {
 
     public RelauncherStubMain() {}
 
-    public void run(String[] args) throws Throwable {
+    public int run(String[] args) throws Throwable {
         if (args.length < 4) {
             System.err.println("Missing arguments");
-            return;
+            return 2;
         }
         final long parentPid = Long.parseLong(args[0]);
         final boolean showConsole = Boolean.parseBoolean(args[1]);
@@ -42,22 +44,25 @@ public class RelauncherStubMain {
 
         final ProcessBuilder childBuilder = new ProcessBuilder(javaCmdline);
 
+        final Process child;
         if (showConsole) {
             childBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             childBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
-            final Process child = childBuilder.start();
+            child = childBuilder.start();
             new GraphicalConsole(child.getInputStream(), child.getErrorStream(), child);
         } else {
             childBuilder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
             childBuilder.redirectError(ProcessBuilder.Redirect.DISCARD);
-            childBuilder.start();
+            child = childBuilder.start();
         }
-
+        final int exitCode = ChildProcessSupervisor.waitFor(child);
+        System.out.println("Relaunched Java child exited with code " + exitCode);
+        return exitCode;
     }
 
     public static void main(String[] args) throws Throwable {
         try {
-            new RelauncherStubMain().run(args);
+            System.exit(new RelauncherStubMain().run(args));
         } catch (Throwable e) {
             final StringWriter traceWriter = new StringWriter();
             e.printStackTrace(new PrintWriter(traceWriter));
@@ -68,6 +73,7 @@ public class RelauncherStubMain {
                     "Relauncher crash",
                     JOptionPane.ERROR_MESSAGE);
             });
+            System.exit(1);
         }
     }
 }

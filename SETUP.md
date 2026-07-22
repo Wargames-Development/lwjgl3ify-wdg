@@ -20,7 +20,27 @@ The release workflow installs Java 8, 17, 21, and the daemon JVM version. Gradle
 
 For the least surprising setup, install an architecture-native JDK 25 and use it for the shell and IntelliJ Gradle JVM. Let Gradle provision the project-specific Azul Java 8, 17, and 21 toolchains.
 
-The separately supplied Eclipse Temurin Java 21 packages are runtime JRE inputs for the bounded bundle and installer validation, not replacements for the development JDKs above. They are not required by ordinary `check` or `build`. Keep the external ZIP outside the repository and use it only with the explicit bundle and installation-smoke tasks documented in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md). The generated smoke cache stays under `build/runtime-installation-smoke`; production startup does not install or select it yet.
+The separately supplied Eclipse Temurin Java 21 packages are runtime JRE inputs for bundle generation, automatic-runtime verification, client-overlay packaging, and the legacy-start relaunch smoke; they are not replacements for the development JDKs above. They are not required by ordinary `check`, `build`, `runClient`, or `runServer`. Keep the external ZIP outside the repository and supply it only to the opt-in tasks documented in [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md). `runClientWithRelauncher` stages the normalized bundle into the development game directory only when `wdgJavaRuntimeBundle` is supplied and uses an isolated build cache by default.
+
+## Packaged Java development input
+
+The canonical client-instance location is:
+
+```text
+<game-directory>/lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.zip
+```
+
+For development, pass the external package bundle to the opt-in staging or relaunch task:
+
+```bash
+./gradlew --no-daemon stageBundledJavaForRelauncher \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+
+./gradlew --no-daemon runClientWithRelauncher \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+```
+
+The production locator checks the explicit `lwjgl3ify.relauncher.runtimeBundle` system property, then `LWJGL3IFY_RUNTIME_BUNDLE`, then the canonical game-directory path. Recovery properties are `-Dlwjgl3ify.relauncher.disableBundledJava=true` and `-Dlwjgl3ify.relauncher.forceSettings=true`.
 
 ## Platform notes
 
@@ -79,3 +99,7 @@ gradlew.bat --no-daemon setupDecompWorkspace
 * **Generated or Forge classes are unresolved in IntelliJ:** run `setupDecompWorkspace`, reload Gradle, and confirm delegated Gradle builds remain enabled.
 
 See [COMPILING.md](COMPILING.md) for validation, packaging, run tasks, and output locations.
+
+## Production-like relaunch smoke
+
+Before using `runClientWithRelauncher`, run `verifyProductionModArtifact`. Supply `-PwdgRelauncherGameDirectory` and `-PwdgRelauncherRuntimeCacheRoot` when an isolated production-like smoke is required. The smoke uses the exact unclassified `reobfJar` output and rejects a development/pre-shadow JAR, a stale refmap, a second lwjgl3ify JAR on the child classpath, or a production artifact whose SHA-256 differs from the verified task output. The smoke deliberately stays attached until the Java 21 Minecraft process exits so failures propagate to Gradle.
