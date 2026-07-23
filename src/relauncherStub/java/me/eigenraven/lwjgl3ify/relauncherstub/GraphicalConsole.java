@@ -4,11 +4,13 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -37,6 +39,8 @@ public class GraphicalConsole {
     Thread stdoutAdapter;
     Thread stderrAdapter;
     final Process process;
+    final Path logFile;
+    final BufferedWriter logWriter;
 
     class StreamToQueueAdapter implements Runnable {
 
@@ -81,6 +85,7 @@ public class GraphicalConsole {
                         }
                         return;
                     }
+                    writeLogLine(line);
                     consoleBuffer.add(line);
                 } catch (IOException e) {
                     break;
@@ -94,10 +99,13 @@ public class GraphicalConsole {
         }
     }
 
-    public GraphicalConsole(final InputStream stdout, final InputStream stderr, final Process process) {
+    public GraphicalConsole(final InputStream stdout, final InputStream stderr, final Process process, Path logFile)
+        throws IOException {
         this.stdout = stdout;
         this.stderr = stderr;
         this.process = process;
+        this.logFile = RelaunchLogSupport.prepare(logFile);
+        this.logWriter = RelaunchLogSupport.openWriter(this.logFile);
         try {
             System.setProperty("awt.useSystemAAFontSettings", "on");
             if (System.getProperty("os.name")
@@ -160,6 +168,8 @@ public class GraphicalConsole {
                     final Process terminated = process.onExit()
                         .get();
                     final int exitCode = terminated.exitValue();
+                    writeLogLine("[lwjgl3ify-wdg] managed Java child exited with code " + exitCode);
+                    closeLogWriter();
                     invokeOnSwingThread(false, () -> {
                         killButton.setEnabled(false);
                         try {
@@ -182,6 +192,24 @@ public class GraphicalConsole {
 
             consoleWindow.setVisible(true);
         });
+    }
+
+    private void writeLogLine(String line) {
+        synchronized (logWriter) {
+            try {
+                logWriter.write(line);
+                logWriter.newLine();
+                logWriter.flush();
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private void closeLogWriter() {
+        synchronized (logWriter) {
+            try {
+                logWriter.close();
+            } catch (IOException ignored) {}
+        }
     }
 
     private void invokeOnSwingThread(boolean wait, Runnable runnable) {

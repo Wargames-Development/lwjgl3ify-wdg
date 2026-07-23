@@ -96,7 +96,9 @@ Expected output locations:
 * `build/distributions/` — `lwjgl3ify-VERSION-multimc.zip` from `mmcInstanceFiles`.
 * `build/source-packages/` — clean repository source archives created by the WDG packaging script.
 * `build/runtime-packages/` — generated normalized Java runtime bundles; never commit these artifacts.
-* `build/distributions/*-client-with-java21.zip` — opt-in root-overlay package containing exactly one complete shaded client mod JAR and the separate normalized runtime bundle.
+* `build/wdg-release/lwjgl3ify-<version>.jar` — moderation-ready one-JAR artifact containing the verified production mod plus the four primary desktop Java runtimes.
+* `build/runtime-extensions/` — optional Windows ARM64 and Linux ARM64 archives for `lwjgl3ify/runtime/extensions/`.
+* `build/distributions/*-client-with-java21.zip` — legacy compatibility overlay containing the base mod JAR and separate normalized six-platform bundle.
 
 Artifact names include the version supplied by the existing Git-tag/convention build. Do not hard-code a WDG preview suffix in local scripts.
 
@@ -159,6 +161,26 @@ Independent listing check:
 ```bash
 unzip -Z1 build/source-packages/lwjgl3ify-wdg-source.zip
 ```
+
+
+## Change 005 runtime-bearing release artifact
+
+Build the transparent one-JAR candidate with the exact Change 004 runtime input:
+
+```bash
+./gradlew --no-daemon packageRuntimeBundledModJar verifyRuntimeBundledModJar \
+  verifyRuntimeBundledModJarReproducibility \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+```
+
+The generated JAR embeds exactly `windows-x86_64`, `linux-x86_64`, `macos-x86_64`, and `macos-aarch64`. It preserves every byte of each original Temurin archive, including its legal directory. It does not embed Windows ARM64 or Linux ARM64. Produce those optional files with:
+
+```bash
+./gradlew --no-daemon packageRuntimeExtensionArchives \
+  -PwdgJavaRuntimeBundle="/absolute/path/to/Required Java Packages.zip"
+```
+
+The graphical relaunch console is disabled by default. Child output remains in `logs/lwjgl3ify-java21-child.log` with launch-time rotation. Support staff can temporarily restore the console with `-Dlwjgl3ify.wdg.showConsole=true`.
 
 ## Change 004h production artifact validation
 

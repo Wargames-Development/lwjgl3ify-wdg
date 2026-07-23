@@ -144,18 +144,36 @@ required_staged=(
     "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfigTest.java"
     "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherCommandTest.java"
     "src/test/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchControllerTest.java"
+    "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProviderTest.java"
+    "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocatorTest.java"
+    "src/test/java/me/eigenraven/lwjgl3ify/relauncherstub/RelaunchLogSupportTest.java"
+    "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProvider.java"
+    "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeArchiveIntegrity.java"
+    "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocator.java"
+    "src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelaunchLogSupport.java"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/RuntimeBundledArtifactSupport.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageRuntimeBundledModJarTask.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRuntimeBundledModJarTask.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRuntimeBundledModJarReproducibilityTask.kt"
+    "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageRuntimeExtensionArchivesTask.kt"
     "docs/BUNDLED_JAVA.md"
+    "docs/RUNTIME_DISTRIBUTION.md"
+    "docs/CURSEFORGE_MODERATION.md"
     "scripts/package-source.sh"
     "scripts/validate-java-runtime-contract.sh"
+    "scripts/validate-change005.sh"
 )
 for required in "${required_staged[@]}"; do
     [[ -f "$DEST/$required" ]] || { echo "ERROR: Required staged file is missing: $required" >&2; exit 1; }
 done
 
+find "$DEST" -type f -exec touch -t 198001010000 {} +
+find "$DEST" -type d -exec touch -t 198001010000 {} +
+
 rm -f "$OUTPUT"
 (
     cd "$STAGE"
-    zip -q -y -r "$OUTPUT" "$TOP_LEVEL"
+    find "$TOP_LEVEL" \( -type f -o -type l \) -print | LC_ALL=C sort | zip -X -q -y "$OUTPUT" -@
 )
 
 unzip -Z1 "$OUTPUT" > "$LISTING"

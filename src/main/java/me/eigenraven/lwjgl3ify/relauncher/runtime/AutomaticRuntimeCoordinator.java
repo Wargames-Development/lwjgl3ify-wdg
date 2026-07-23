@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Coordinates discovery, host selection, Change 003 installation, and launch selection. */
+/** Coordinates source selection, host selection, secure installation, and launch selection. */
 public final class AutomaticRuntimeCoordinator {
 
     public static final String DISABLE_PROPERTY = "lwjgl3ify.relauncher.disableBundledJava";
@@ -16,35 +16,62 @@ public final class AutomaticRuntimeCoordinator {
 
     public interface Installer {
 
-        RuntimeInstallResult install(Path bundle, String platformId, Path cacheRoot)
+        RuntimeInstallResult install(RuntimeBundleLocator.Result source, String platformId, Path cacheRoot)
             throws IOException, RuntimeInstallationException;
     }
 
     private static final class ProductionInstaller implements Installer {
 
         @Override
-        public RuntimeInstallResult install(Path bundle, String platformId, Path cacheRoot)
+        public RuntimeInstallResult install(RuntimeBundleLocator.Result source, String platformId, Path cacheRoot)
             throws IOException, RuntimeInstallationException {
-            return new RuntimeInstaller().install(bundle, platformId, cacheRoot);
+            RuntimeInstaller installer = new RuntimeInstaller();
+            if (source.getKind() == RuntimeBundleLocator.Kind.DIRECT_ARCHIVE) {
+                return installer.installArchive(source.getPath(), platformId, cacheRoot);
+            }
+            return installer.install(source.getPath(), platformId, cacheRoot);
         }
     }
 
     private final RuntimeBundleLocator bundleLocator;
     private final RuntimeHostDetector hostDetector;
     private final Installer installer;
+    private final EmbeddedRuntimeArchiveProvider embeddedProvider;
+    private final RuntimeExtensionLocator extensionLocator;
 
     public AutomaticRuntimeCoordinator() {
-        this(new RuntimeBundleLocator(), new RuntimeHostDetector(), new ProductionInstaller());
+        this(
+            new RuntimeBundleLocator(),
+            new RuntimeHostDetector(),
+            new ProductionInstaller(),
+            new EmbeddedRuntimeArchiveProvider(),
+            new RuntimeExtensionLocator());
     }
 
     public AutomaticRuntimeCoordinator(RuntimeBundleLocator bundleLocator, RuntimeHostDetector hostDetector,
         Installer installer) {
-        if (bundleLocator == null || hostDetector == null || installer == null) {
-            throw new NullPointerException("bundleLocator, hostDetector, and installer are required");
+        this(
+            bundleLocator,
+            hostDetector,
+            installer,
+            new EmbeddedRuntimeArchiveProvider(),
+            new RuntimeExtensionLocator());
+    }
+
+    AutomaticRuntimeCoordinator(RuntimeBundleLocator bundleLocator, RuntimeHostDetector hostDetector,
+        Installer installer, EmbeddedRuntimeArchiveProvider embeddedProvider,
+        RuntimeExtensionLocator extensionLocator) {
+        if (bundleLocator == null || hostDetector == null
+            || installer == null
+            || embeddedProvider == null
+            || extensionLocator == null) {
+            throw new NullPointerException("Runtime coordinator collaborators are required");
         }
         this.bundleLocator = bundleLocator;
         this.hostDetector = hostDetector;
         this.installer = installer;
+        this.embeddedProvider = embeddedProvider;
+        this.extensionLocator = extensionLocator;
     }
 
     public AutomaticRuntimeResult prepare(Path gameDirectory, Path cacheRoot, boolean useBundledJava) {
@@ -67,24 +94,6 @@ public final class AutomaticRuntimeCoordinator {
                 .disabled("Automatic packaged Java disabled in relauncher settings", forceSettings);
         }
 
-        RuntimeBundleLocator.Result bundle;
-        try {
-            bundle = bundleLocator.locate(gameDirectory, properties, environment);
-        } catch (RuntimeException exception) {
-            return AutomaticRuntimeResult.failed(
-                "Packaged Java bundle path is invalid: " + exception.getMessage(),
-                exception,
-                null,
-                null,
-                forceSettings);
-        }
-        if (!bundle.isAvailable()) {
-            if (bundle.isFatal()) {
-                return AutomaticRuntimeResult.failed(bundle.getMessage(), null, bundle, null, forceSettings);
-            }
-            return AutomaticRuntimeResult.unavailable(bundle.getMessage(), bundle, null, forceSettings);
-        }
-
         RuntimeHost host;
         try {
             host = hostDetector.detect(
@@ -92,43 +101,104 @@ public final class AutomaticRuntimeCoordinator {
                 value(properties, "os.arch", System.getProperty("os.arch")),
                 environment);
         } catch (RuntimeHostDetectionException exception) {
-            return AutomaticRuntimeResult.unavailable(exception.getMessage(), bundle, null, forceSettings);
+            return AutomaticRuntimeResult.unavailable(exception.getMessage(), null, null, forceSettings);
         } catch (InterruptedException exception) {
             Thread.currentThread()
                 .interrupt();
+            return AutomaticRuntimeResult
+                .failed("Interrupted while detecting the host for packaged Java", exception, null, null, forceSettings);
+        }
+
+        RuntimeManifest manifest;
+        RuntimePlatform platform;
+        try {
+            manifest = RuntimeManifest.loadCanonical();
+            platform = manifest.selectPlatform(host);
+        } catch (RuntimeInstallationException exception) {
+            return AutomaticRuntimeResult.unavailable(exception.getMessage(), null, host, forceSettings);
+        }
+
+        RuntimeBundleLocator.Result source;
+        try {
+            source = bundleLocator.locateExplicit(gameDirectory, properties, environment);
+            if (source != null && !source.isAvailable()) {
+                return AutomaticRuntimeResult.failed(source.getMessage(), null, source, host, forceSettings);
+            }
+            if (source == null && embeddedProvider.isAvailable(platform)) {
+                source = embeddedProvider.materialize(manifest, platform, cacheRoot);
+            }
+            if (source == null) {
+                source = extensionLocator.locate(gameDirectory, platform);
+                if (source != null && !source.isAvailable()) {
+                    return AutomaticRuntimeResult.failed(source.getMessage(), null, source, host, forceSettings);
+                }
+            }
+            if (source == null) {
+                RuntimeBundleLocator.Result legacy = bundleLocator.locateDefault(gameDirectory);
+                if (legacy.isAvailable()) {
+                    source = legacy;
+                } else if (legacy.isFatal()) {
+                    return AutomaticRuntimeResult.failed(legacy.getMessage(), null, legacy, host, forceSettings);
+                }
+            }
+        } catch (RuntimeException exception) {
             return AutomaticRuntimeResult.failed(
-                "Interrupted while detecting the host for packaged Java",
+                "Packaged Java source path is invalid: " + exception.getMessage(),
                 exception,
-                bundle,
                 null,
+                host,
+                forceSettings);
+        } catch (RuntimeInstallationException exception) {
+            return AutomaticRuntimeResult.failed(
+                "Embedded Java runtime validation failed: " + exception.getMessage(),
+                exception,
+                null,
+                host,
+                forceSettings);
+        } catch (IOException exception) {
+            return AutomaticRuntimeResult.failed(
+                "Embedded Java runtime preparation failed: " + exception.getMessage(),
+                exception,
+                null,
+                host,
+                forceSettings);
+        }
+
+        if (source == null) {
+            return AutomaticRuntimeResult.unavailable(
+                "No embedded, extension, or legacy Java runtime source is available for " + platform.getId()
+                    + ". Optional extensions belong in "
+                    + RuntimeExtensionLocator.CANONICAL_DIRECTORY
+                    + "/"
+                    + RuntimeExtensionLocator.canonicalFileName(platform),
+                null,
+                host,
                 forceSettings);
         }
 
         try {
-            RuntimeManifest manifest = RuntimeManifest.loadCanonical();
-            RuntimePlatform platform = manifest.selectPlatform(host);
-            RuntimeInstallResult installation = installer.install(bundle.getPath(), platform.getId(), cacheRoot);
+            RuntimeInstallResult installation = installer.install(source, platform.getId(), cacheRoot);
             JavaLaunchSelection selection = JavaLaunchSelection.bundled(installation);
-            return AutomaticRuntimeResult.ready(bundle, host, installation, selection, forceSettings);
+            return AutomaticRuntimeResult.ready(source, host, installation, selection, forceSettings);
         } catch (RuntimeInstallationException exception) {
             return AutomaticRuntimeResult.failed(
                 "Packaged Java validation or installation failed: " + exception.getMessage(),
                 exception,
-                bundle,
+                source,
                 host,
                 forceSettings);
         } catch (IOException exception) {
             return AutomaticRuntimeResult.failed(
                 "Packaged Java preparation failed: " + exception.getMessage(),
                 exception,
-                bundle,
+                source,
                 host,
                 forceSettings);
         } catch (RuntimeException exception) {
             return AutomaticRuntimeResult.failed(
                 "Packaged Java preparation failed unexpectedly: " + exception.getMessage(),
                 exception,
-                bundle,
+                source,
                 host,
                 forceSettings);
         }

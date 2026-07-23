@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 
-/** Resolves the packaged-runtime bundle without scanning uncontrolled directories. */
+/** Resolves explicit and legacy normalized runtime bundles without scanning uncontrolled directories. */
 public final class RuntimeBundleLocator {
 
     public static final String PROPERTY_NAME = "lwjgl3ify.relauncher.runtimeBundle";
@@ -16,7 +16,14 @@ public final class RuntimeBundleLocator {
     public enum Source {
         SYSTEM_PROPERTY,
         ENVIRONMENT,
-        GAME_DIRECTORY
+        GAME_DIRECTORY,
+        EMBEDDED_JAR,
+        EXTENSION_DIRECTORY
+    }
+
+    public enum Kind {
+        NORMALIZED_BUNDLE,
+        DIRECT_ARCHIVE
     }
 
     public enum Status {
@@ -29,14 +36,20 @@ public final class RuntimeBundleLocator {
 
         private final Status status;
         private final Source source;
+        private final Kind kind;
         private final Path path;
         private final String message;
 
-        Result(Status status, Source source, Path path, String message) {
+        Result(Status status, Source source, Kind kind, Path path, String message) {
             this.status = status;
             this.source = source;
+            this.kind = kind;
             this.path = path;
             this.message = message;
+        }
+
+        static Result directArchive(Source source, Path path, String message) {
+            return new Result(Status.AVAILABLE, source, Kind.DIRECT_ARCHIVE, path, message);
         }
 
         public Status getStatus() {
@@ -45,6 +58,10 @@ public final class RuntimeBundleLocator {
 
         public Source getSource() {
             return source;
+        }
+
+        public Kind getKind() {
+            return kind;
         }
 
         public Path getPath() {
@@ -65,6 +82,11 @@ public final class RuntimeBundleLocator {
     }
 
     public Result locate(Path gameDirectory, Map<String, String> properties, Map<String, String> environment) {
+        Result explicit = locateExplicit(gameDirectory, properties, environment);
+        return explicit == null ? locateDefault(gameDirectory) : explicit;
+    }
+
+    public Result locateExplicit(Path gameDirectory, Map<String, String> properties, Map<String, String> environment) {
         if (gameDirectory == null) throw new NullPointerException("gameDirectory");
         Path normalizedGameDirectory = gameDirectory.toAbsolutePath()
             .normalize();
@@ -76,6 +98,13 @@ public final class RuntimeBundleLocator {
         if (environmentValue != null) {
             return validate(resolve(normalizedGameDirectory, environmentValue), Source.ENVIRONMENT, true);
         }
+        return null;
+    }
+
+    public Result locateDefault(Path gameDirectory) {
+        if (gameDirectory == null) throw new NullPointerException("gameDirectory");
+        Path normalizedGameDirectory = gameDirectory.toAbsolutePath()
+            .normalize();
         return validate(normalizedGameDirectory.resolve(CANONICAL_RELATIVE_PATH), Source.GAME_DIRECTORY, false);
     }
 
@@ -99,14 +128,16 @@ public final class RuntimeBundleLocator {
             return new Result(
                 explicit ? Status.INVALID_OVERRIDE : Status.DEFAULT_ABSENT,
                 source,
+                Kind.NORMALIZED_BUNDLE,
                 path,
                 explicit ? "Explicit packaged Java bundle does not exist: " + path
-                    : "Packaged Java bundle was not found at " + path);
+                    : "Legacy packaged Java bundle was not found at " + path);
         }
         if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
             return new Result(
                 Status.INVALID_OVERRIDE,
                 source,
+                Kind.NORMALIZED_BUNDLE,
                 path,
                 "Packaged Java bundle path is a directory: " + path);
         }
@@ -114,12 +145,23 @@ public final class RuntimeBundleLocator {
             return new Result(
                 Status.INVALID_OVERRIDE,
                 source,
+                Kind.NORMALIZED_BUNDLE,
                 path,
                 "Packaged Java bundle is not a safe regular file: " + path);
         }
         if (!Files.isReadable(path)) {
-            return new Result(Status.INVALID_OVERRIDE, source, path, "Packaged Java bundle is not readable: " + path);
+            return new Result(
+                Status.INVALID_OVERRIDE,
+                source,
+                Kind.NORMALIZED_BUNDLE,
+                path,
+                "Packaged Java bundle is not readable: " + path);
         }
-        return new Result(Status.AVAILABLE, source, path, "Packaged Java bundle selected from " + source);
+        return new Result(
+            Status.AVAILABLE,
+            source,
+            Kind.NORMALIZED_BUNDLE,
+            path,
+            "Packaged Java bundle selected from " + source);
     }
 }

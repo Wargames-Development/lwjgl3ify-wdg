@@ -23,10 +23,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Explicit, startup-independent installer for one platform from a normalized Java runtime bundle.
+ * Explicit, startup-independent installer for one platform from a normalized bundle or one directly supplied archive.
  * No host detection, config mutation, UI integration, Java execution, or relaunch occurs here.
  */
 public final class RuntimeInstaller {
+
+    private interface SelectedArchiveSource {
+
+        void materialize(Path destination) throws IOException, RuntimeInstallationException;
+    }
 
     private final RuntimeManifest configuredManifest;
 
@@ -47,8 +52,39 @@ public final class RuntimeInstaller {
         if (normalizedBundle == null || platformId == null || cacheRoot == null) {
             throw new NullPointerException("normalizedBundle, platformId, and cacheRoot are required");
         }
-        RuntimeManifest manifest = configuredManifest == null ? RuntimeManifest.loadCanonical() : configuredManifest;
-        RuntimePlatform platform = manifest.getPlatform(platformId);
+        final RuntimeManifest manifest = configuredManifest == null ? RuntimeManifest.loadCanonical()
+            : configuredManifest;
+        final RuntimePlatform platform = manifest.getPlatform(platformId);
+        final Path normalized = normalizedBundle.toAbsolutePath()
+            .normalize();
+        return installSelectedArchive(
+            manifest,
+            platform,
+            cacheRoot,
+            destination -> {
+                new RuntimeBundleReader().verifyAndCopySelectedArchive(normalized, manifest, platform, destination);
+            });
+    }
+
+    public RuntimeInstallResult installArchive(Path runtimeArchive, String platformId, Path cacheRoot)
+        throws IOException, RuntimeInstallationException {
+        if (runtimeArchive == null || platformId == null || cacheRoot == null) {
+            throw new NullPointerException("runtimeArchive, platformId, and cacheRoot are required");
+        }
+        final RuntimeManifest manifest = configuredManifest == null ? RuntimeManifest.loadCanonical()
+            : configuredManifest;
+        final RuntimePlatform platform = manifest.getPlatform(platformId);
+        final Path normalized = runtimeArchive.toAbsolutePath()
+            .normalize();
+        RuntimeArchiveIntegrity.verify(normalized, platform, "Direct Java runtime archive");
+        return installSelectedArchive(manifest, platform, cacheRoot, destination -> {
+            RuntimeArchiveIntegrity.verify(normalized, platform, "Direct Java runtime archive");
+            Files.copy(normalized, destination);
+        });
+    }
+
+    private RuntimeInstallResult installSelectedArchive(RuntimeManifest manifest, RuntimePlatform platform,
+        Path cacheRoot, SelectedArchiveSource archiveSource) throws IOException, RuntimeInstallationException {
         Path normalizedCacheRoot = cacheRoot.toAbsolutePath()
             .normalize();
         Files.createDirectories(normalizedCacheRoot);
@@ -79,21 +115,22 @@ public final class RuntimeInstaller {
             Thread.currentThread()
                 .interrupt();
             throw new RuntimeInstallationException(
-                "Interrupted while waiting for in-process runtime lock for " + platformId
+                "Interrupted while waiting for in-process runtime lock for " + platform.getId()
                     + " at "
                     + layout.getInstallationRoot(),
                 exception);
         }
         try {
-            return installWithOperatingSystemLock(normalizedBundle, manifest, platform, layout);
+            return installWithOperatingSystemLock(archiveSource, manifest, platform, layout);
         } finally {
             processLock.unlock();
             if (!processLock.hasQueuedThreads()) PROCESS_LOCKS.remove(processKey, processLock);
         }
     }
 
-    private RuntimeInstallResult installWithOperatingSystemLock(Path normalizedBundle, RuntimeManifest manifest,
-        RuntimePlatform platform, RuntimeCacheLayout layout) throws IOException, RuntimeInstallationException {
+    private RuntimeInstallResult installWithOperatingSystemLock(SelectedArchiveSource archiveSource,
+        RuntimeManifest manifest, RuntimePlatform platform, RuntimeCacheLayout layout)
+        throws IOException, RuntimeInstallationException {
         if (Files.isSymbolicLink(layout.getLockFile())) {
             throw new RuntimeInstallationException(
                 "Runtime installation lock file must not be a symbolic link: " + layout.getLockFile());
@@ -121,12 +158,8 @@ public final class RuntimeInstaller {
             boolean published = false;
             try {
                 Files.createDirectory(staging);
-                new RuntimeBundleReader().verifyAndCopySelectedArchive(
-                    normalizedBundle.toAbsolutePath()
-                        .normalize(),
-                    manifest,
-                    platform,
-                    selectedArchive);
+                archiveSource.materialize(selectedArchive);
+                RuntimeArchiveIntegrity.verify(selectedArchive, platform, "Selected Java runtime archive");
                 new RuntimeArchiveExtractor().extract(selectedArchive, staging, platform);
                 RuntimeInstallResult stagedResult = validateExtractedFiles(staging, manifest, platform, true);
                 RuntimeInstallMarker.create(manifest, platform)

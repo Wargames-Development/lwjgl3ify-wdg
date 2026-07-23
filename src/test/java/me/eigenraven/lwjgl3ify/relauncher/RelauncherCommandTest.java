@@ -129,20 +129,65 @@ public class RelauncherCommandTest {
         Path patches = temporary.newFile("patches.jar")
             .toPath();
 
-        List<String> direct = Relauncher.createBootstrapCommand(selection, true, args, mod, patches, 42L);
+        List<String> direct = Relauncher.createBootstrapCommand(
+            selection,
+            true,
+            args,
+            mod,
+            patches,
+            42L,
+            false,
+            temporary.getRoot()
+                .toPath()
+                .resolve("logs/child.log"));
         assertEquals(
             java.toRealPath()
                 .toString(),
             direct.get(0));
         assertEquals("@" + args, direct.get(1));
 
-        List<String> stub = Relauncher.createBootstrapCommand(selection, false, args, mod, patches, 42L);
+        List<String> stub = Relauncher.createBootstrapCommand(
+            selection,
+            false,
+            args,
+            mod,
+            patches,
+            42L,
+            false,
+            temporary.getRoot()
+                .toPath()
+                .resolve("logs/child.log"));
         assertEquals(
             javaw.toRealPath()
                 .toString(),
             stub.get(0));
         assertTrue(stub.contains(args.toString()));
         assertTrue(stub.contains("me.eigenraven.lwjgl3ify.relauncherstub.RelauncherStubMain"));
+        assertTrue(stub.contains("false"));
+        assertTrue(
+            stub.contains(
+                temporary.getRoot()
+                    .toPath()
+                    .resolve("logs/child.log")
+                    .toAbsolutePath()
+                    .normalize()
+                    .toString()));
+
+        List<String> diagnosticStub = Relauncher.createBootstrapCommand(
+            selection,
+            false,
+            args,
+            mod,
+            patches,
+            42L,
+            true,
+            temporary.getRoot()
+                .toPath()
+                .resolve("logs/diagnostic-child.log"));
+        assertEquals(
+            "true",
+            diagnosticStub
+                .get(diagnosticStub.indexOf("me.eigenraven.lwjgl3ify.relauncherstub.RelauncherStubMain") + 2));
     }
 
     @Test
@@ -164,7 +209,11 @@ public class RelauncherCommandTest {
                 .toPath(),
             temporary.newFile("patches-unix.jar")
                 .toPath(),
-            11L);
+            11L,
+            false,
+            temporary.getRoot()
+                .toPath()
+                .resolve("logs/child.log"));
         assertEquals(
             java.toAbsolutePath()
                 .normalize()

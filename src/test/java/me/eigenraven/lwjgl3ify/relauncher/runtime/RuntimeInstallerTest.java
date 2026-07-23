@@ -146,6 +146,34 @@ public class RuntimeInstallerTest {
     }
 
     @Test
+    public void directExtensionArchiveInstallsThenReusesWithExactHash() throws Exception {
+        Fixture fixture = windowsFixture(Collections.<ArchiveItem>emptyList(), true, true, true);
+        Path archive = Files.createTempFile("runtime-extension", ".zip");
+        Path cache = Files.createTempDirectory("runtime-cache");
+        Path badCache = Files.createTempDirectory("runtime-cache-bad");
+        Files.write(archive, fixture.nestedArchive);
+        try {
+            RuntimeInstaller installer = new RuntimeInstaller(fixture.manifest);
+            RuntimeInstallResult first = installer.installArchive(archive, fixture.platformId, cache);
+            assertTrue(first.wasInstalled());
+            RuntimeInstallResult second = installer.installArchive(archive, fixture.platformId, cache);
+            assertTrue(second.wasReused());
+            Files.write(archive, new byte[] { 1, 2, 3 });
+            expectFailure("size", new ThrowingRunnable() {
+
+                public void run() throws Exception {
+                    installer.installArchive(archive, fixture.platformId, badCache);
+                }
+            });
+        } finally {
+            deleteTemp(cache);
+            deleteTemp(badCache);
+            Files.deleteIfExists(archive);
+            Files.deleteIfExists(fixture.bundle);
+        }
+    }
+
+    @Test
     public void validUnixFixturePreservesExecutableAndSafeSymlink() throws Exception {
         Path symlinkProbe = Files.createTempDirectory("symlink-probe");
         boolean posix = Files.getFileStore(symlinkProbe)

@@ -12,6 +12,7 @@
 /config/
 /crash-reports/
 /logs/
+/validation-logs/
 /saves/
 /buildSrc/build/
 

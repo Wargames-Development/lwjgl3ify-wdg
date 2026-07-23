@@ -47,6 +47,8 @@ public class Relauncher {
         "native.", "com.sun.", "sun.", "awt.", };
     static final String[] RECOMMENDED_JAVA_ARGS = Tags.RECOMMENDED_JAVA_ARGS.split("\t");
     static final String RUNTIME_CACHE_ROOT_PROPERTY = "lwjgl3ify.relauncher.runtimeCacheRoot";
+    static final String SHOW_CONSOLE_PROPERTY = "lwjgl3ify.wdg.showConsole";
+    static final String CHILD_LOG_RELATIVE_PATH = "logs/lwjgl3ify-java21-child.log";
     static final String ADDITIONAL_CLASSPATH_PROPERTY = "lwjgl3ify.relauncher.additionalClasspath";
     static final String ADDITIONAL_TWEAKERS_PROPERTY = "lwjgl3ify.relauncher.additionalTweakers";
     static final String SUPERVISED_LAUNCH_PROPERTY = "lwjgl3ify.relauncher.supervisedLaunch";
@@ -360,13 +362,19 @@ public class Relauncher {
                 .collect(Collectors.toList()),
             StandardCharsets.UTF_8);
 
+        final boolean showConsole = Boolean.parseBoolean(System.getProperty(SHOW_CONSOLE_PROPERTY, "false"));
+        final Path childLog = gameDirectory.resolve(CHILD_LOG_RELATIVE_PATH)
+            .toAbsolutePath()
+            .normalize();
         final List<String> bootstrapCmd = createBootstrapCommand(
             launchSelection,
             forwardLogs,
             argFile,
             myJarPath,
             forgePatchesJarPath,
-            getCurrentPid());
+            getCurrentPid(),
+            showConsole,
+            childLog);
 
         final ProcessBuilder pb = new ProcessBuilder(bootstrapCmd);
         pb.inheritIO();
@@ -545,7 +553,7 @@ public class Relauncher {
     }
 
     static List<String> createBootstrapCommand(JavaLaunchSelection launchSelection, boolean forwardLogs, Path argFile,
-        Path myJarPath, Path forgePatchesJarPath, long parentPid) {
+        Path myJarPath, Path forgePatchesJarPath, long parentPid, boolean showConsole, Path childLog) {
         final List<String> bootstrapCmd = new ArrayList<>();
         final String javaPath = launchSelection.getEffectiveExecutable(forwardLogs);
         bootstrapCmd.add(javaPath);
@@ -558,9 +566,13 @@ public class Relauncher {
             bootstrapCmd.add(forgePatchesJarPath + File.pathSeparator + myJarPath);
             bootstrapCmd.add("me.eigenraven.lwjgl3ify.relauncherstub.RelauncherStubMain");
             bootstrapCmd.add(Long.toString(parentPid));
-            bootstrapCmd.add("true");
+            bootstrapCmd.add(Boolean.toString(showConsole));
             bootstrapCmd.add(javaPath);
             bootstrapCmd.add(argFile.toString());
+            bootstrapCmd.add(
+                childLog.toAbsolutePath()
+                    .normalize()
+                    .toString());
         }
         return bootstrapCmd;
     }
@@ -585,9 +597,11 @@ public class Relauncher {
         logger.info("Automatic packaged Java status: {} - {}", automatic.getStatus(), automatic.getMessage());
         if (automatic.getBundle() != null) {
             logger.info(
-                "Packaged Java bundle source={} path={}",
+                "Packaged Java source={} kind={} path={}",
                 automatic.getBundle()
                     .getSource(),
+                automatic.getBundle()
+                    .getKind(),
                 automatic.getBundle()
                     .getPath());
         }

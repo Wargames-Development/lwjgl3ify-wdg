@@ -389,3 +389,11 @@ The deterministic process regression is:
 ```
 
 `runRelauncherChildExitFailure` is deliberately expected to fail with child exit code 37. Use the documented wrapper in `COMPILING.md`; a raw invocation must not report `BUILD SUCCESSFUL`.
+
+## Change 005 one-JAR runtime distribution
+
+Change 005 adds a separate deterministic release task that combines the already verified production lwjgl3ify JAR with four unmodified primary Temurin runtime archives. The base production verifier remains intact; `verifyRuntimeBundledModJar` additionally proves that every base entry is byte-identical and that the embedded runtime matrix is exactly Windows x86-64, Linux x86-64, Intel macOS, and Apple Silicon macOS.
+
+The runtime coordinator now prefers an explicit diagnostic bundle, then an exact embedded primary archive, then an exact optional architecture extension, and finally the legacy full bundle. Optional Windows ARM64 and Linux ARM64 files belong under `lwjgl3ify/runtime/extensions/` and are validated against the same canonical manifest.
+
+Normal launches no longer open the graphical relaunch console. Output is retained in `logs/lwjgl3ify-java21-child.log`, with bounded rotation and an explicit `-Dlwjgl3ify.wdg.showConsole=true` diagnostic override. See [RUNTIME_DISTRIBUTION.md](RUNTIME_DISTRIBUTION.md).

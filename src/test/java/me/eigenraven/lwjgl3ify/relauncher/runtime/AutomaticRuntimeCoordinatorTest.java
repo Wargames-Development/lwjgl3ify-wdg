@@ -46,8 +46,8 @@ public class AutomaticRuntimeCoordinatorTest {
         AtomicReference<Path> passedCache = new AtomicReference<Path>();
         AtomicReference<String> passedPlatform = new AtomicReference<String>();
         java.util.concurrent.atomic.AtomicInteger installCalls = new java.util.concurrent.atomic.AtomicInteger();
-        AutomaticRuntimeCoordinator.Installer installer = (selectedBundle, platform, cacheRoot) -> {
-            passedBundle.set(selectedBundle);
+        AutomaticRuntimeCoordinator.Installer installer = (selectedSource, platform, cacheRoot) -> {
+            passedBundle.set(selectedSource.getPath());
             passedPlatform.set(platform);
             passedCache.set(cacheRoot);
             return new RuntimeInstallResult(
@@ -119,7 +119,7 @@ public class AutomaticRuntimeCoordinatorTest {
         Path cache = temporary.newFolder("empty-cache")
             .toPath();
         AutomaticRuntimeCoordinator coordinator = coordinator(
-            (bundle, platform, root) -> { throw new AssertionError("installer should not run"); });
+            (source, platform, root) -> { throw new AssertionError("installer should not run"); });
         AutomaticRuntimeResult missing = coordinator
             .prepare(game, cache, true, properties("Mac OS X", "aarch64"), Collections.<String, String>emptyMap());
         assertEquals(AutomaticRuntimeResult.Status.UNAVAILABLE, missing.getStatus());
@@ -139,7 +139,7 @@ public class AutomaticRuntimeCoordinatorTest {
         Path cache = temporary.newFolder("disabled-cache")
             .toPath();
         AtomicReference<Boolean> invoked = new AtomicReference<Boolean>(false);
-        AutomaticRuntimeCoordinator coordinator = coordinator((bundle, platform, root) -> {
+        AutomaticRuntimeCoordinator coordinator = coordinator((source, platform, root) -> {
             invoked.set(true);
             throw new AssertionError();
         });
@@ -169,7 +169,7 @@ public class AutomaticRuntimeCoordinatorTest {
             .toPath();
         Map<String, String> invalidOverride = properties("Mac OS X", "aarch64");
         invalidOverride.put(RuntimeBundleLocator.PROPERTY_NAME, "missing.zip");
-        AutomaticRuntimeResult missing = coordinator((bundle, platform, root) -> { throw new AssertionError(); })
+        AutomaticRuntimeResult missing = coordinator((source, platform, root) -> { throw new AssertionError(); })
             .prepare(game, cache, true, invalidOverride, Collections.<String, String>emptyMap());
         assertEquals(AutomaticRuntimeResult.Status.FAILED, missing.getStatus());
 

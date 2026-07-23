@@ -8,12 +8,16 @@ import com.modrinth.minotaur.ModrinthExtension
 import de.undercouch.gradle.tasks.download.Download
 import me.eigenraven.lwjgl3ify.gradle.PackageBundledJavaClientTask
 import me.eigenraven.lwjgl3ify.gradle.PackageJavaRuntimeBundleTask
+import me.eigenraven.lwjgl3ify.gradle.PackageRuntimeBundledModJarTask
+import me.eigenraven.lwjgl3ify.gradle.PackageRuntimeExtensionArchivesTask
 import me.eigenraven.lwjgl3ify.gradle.StageBundledJavaForRelauncherTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyAutomaticJavaRuntimeTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyBundledJavaClientPackageTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeBundleTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyJavaRuntimeInstallationTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyProductionModArtifactTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyRuntimeBundledModJarReproducibilityTask
+import me.eigenraven.lwjgl3ify.gradle.VerifyRuntimeBundledModJarTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyRelauncherChildExitPropagationTask
 import me.eigenraven.lwjgl3ify.gradle.VerifyRepositoryTask
 import me.eigenraven.lwjgl3ify.gradle.VersionJsonTask
@@ -63,6 +67,14 @@ val packageJavaRuntimeBundle = tasks.register<PackageJavaRuntimeBundleTask>("pac
         ),
     )
 }
+
+val packageRuntimeExtensionArchives =
+    tasks.register<PackageRuntimeExtensionArchivesTask>("packageRuntimeExtensionArchives") {
+        dependsOn(packageJavaRuntimeBundle)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        manifestFile.set(javaRuntimeManifestFile)
+        outputDirectory.set(layout.buildDirectory.dir("runtime-extensions"))
+    }
 
 val javaRuntimePlatform = providers.gradleProperty("wdgJavaRuntimePlatform")
 val javaRuntimeInstallationSmokeRoot = layout.buildDirectory.dir("runtime-installation-smoke")
@@ -229,8 +241,8 @@ sourceSets {
         runtimeClasspath += runtimeInstallerEmbedded
     }
     test {
-        compileClasspath += runtimeInstallerEmbedded
-        runtimeClasspath += runtimeInstallerEmbedded
+        compileClasspath += runtimeInstallerEmbedded + relauncherStubSet.output
+        runtimeClasspath += runtimeInstallerEmbedded + relauncherStubSet.output
     }
 }
 
@@ -416,6 +428,45 @@ val verifyProductionModArtifact =
         canonicalRuntimeManifest.set(javaRuntimeManifestFile)
         verificationMetadata.set(
             layout.buildDirectory.file("verification/production-mod-artifact.properties"),
+        )
+    }
+
+val packageRuntimeBundledModJar =
+    tasks.register<PackageRuntimeBundledModJarTask>("packageRuntimeBundledModJar") {
+        dependsOn(verifyProductionModArtifact, packageJavaRuntimeBundle)
+        baseModJar.set(productionModArtifact)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        manifestFile.set(javaRuntimeManifestFile)
+        outputFile.set(
+            layout.buildDirectory.file(
+                "wdg-release/lwjgl3ify-${project.version}.jar",
+            ),
+        )
+    }
+
+val verifyRuntimeBundledModJar =
+    tasks.register<VerifyRuntimeBundledModJarTask>("verifyRuntimeBundledModJar") {
+        dependsOn(packageRuntimeBundledModJar)
+        runtimeBundledJar.set(packageRuntimeBundledModJar.flatMap { it.outputFile })
+        baseModJar.set(productionModArtifact)
+        manifestFile.set(javaRuntimeManifestFile)
+        verificationMetadata.set(
+            layout.buildDirectory.file("verification/runtime-bundled-mod-artifact.properties"),
+        )
+    }
+
+val verifyRuntimeBundledModJarReproducibility =
+    tasks.register<VerifyRuntimeBundledModJarReproducibilityTask>(
+        "verifyRuntimeBundledModJarReproducibility",
+    ) {
+        dependsOn(verifyProductionModArtifact, packageJavaRuntimeBundle)
+        baseModJar.set(productionModArtifact)
+        normalizedBundle.set(packageJavaRuntimeBundle.flatMap { it.outputFile })
+        manifestFile.set(javaRuntimeManifestFile)
+        verificationMetadata.set(
+            layout.buildDirectory.file(
+                "verification/runtime-bundled-mod-reproducibility.properties",
+            ),
         )
     }
 

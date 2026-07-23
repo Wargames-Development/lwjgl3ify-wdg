@@ -103,3 +103,14 @@ See [COMPILING.md](COMPILING.md) for validation, packaging, run tasks, and outpu
 ## Production-like relaunch smoke
 
 Before using `runClientWithRelauncher`, run `verifyProductionModArtifact`. Supply `-PwdgRelauncherGameDirectory` and `-PwdgRelauncherRuntimeCacheRoot` when an isolated production-like smoke is required. The smoke uses the exact unclassified `reobfJar` output and rejects a development/pre-shadow JAR, a stale refmap, a second lwjgl3ify JAR on the child classpath, or a production artifact whose SHA-256 differs from the verified task output. The smoke deliberately stays attached until the Java 21 Minecraft process exits so failures propagate to Gradle.
+
+
+## WDG runtime-bearing release testing
+
+The ordinary WDG release candidate embeds the four common desktop Java 21 runtimes in the lwjgl3ify JAR. Optional Windows ARM64 or Linux ARM64 archives are placed, without extraction or renaming, in:
+
+```text
+<game directory>/lwjgl3ify/runtime/extensions/
+```
+
+Normal launches do not open the graphical relaunch console. Diagnostics remain available in the normal Minecraft logs and `logs/lwjgl3ify-java21-child.log`. Add `-Dlwjgl3ify.wdg.showConsole=true` only for an explicit support session.

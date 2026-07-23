@@ -122,6 +122,9 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetectionException.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetector.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeBundleLocator.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeArchiveIntegrity.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProvider.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocator.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeCoordinator.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeResult.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelection.java",
@@ -152,6 +155,9 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfigTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherCommandTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchControllerTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProviderTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocatorTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncherstub/RelaunchLogSupportTest.java",
             "src/forgePatches/ScriptEngineServices.txt",
             "src/forgePatches/lwjgl3ify-forgePatches-version.txt",
             "src/main/java/me/eigenraven/lwjgl3ify/core/Lwjgl3ifyCoremod.java",
@@ -161,8 +167,17 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/JvmLocator.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java",
             "src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelauncherStubMain.java",
+            "src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelaunchLogSupport.java",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/RuntimeBundledArtifactSupport.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageRuntimeBundledModJarTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRuntimeBundledModJarTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/VerifyRuntimeBundledModJarReproducibilityTask.kt",
+            "buildSrc/src/main/kotlin/me/eigenraven/lwjgl3ify/gradle/PackageRuntimeExtensionArchivesTask.kt",
+            "docs/RUNTIME_DISTRIBUTION.md",
+            "docs/CURSEFORGE_MODERATION.md",
             "scripts/package-source.sh",
             "scripts/validate-java-runtime-contract.sh",
+            "scripts/validate-change005.sh",
         )
         requiredFiles.forEach(::requireFile)
 
@@ -510,6 +525,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstaller.java"),
             listOf(
                 "public RuntimeInstallResult install(Path normalizedBundle, String platformId, Path cacheRoot)",
+                "public RuntimeInstallResult installArchive(Path runtimeArchive, String platformId, Path cacheRoot)",
                 "StandardCopyOption.ATOMIC_MOVE",
                 "FileLock",
                 "RuntimeInstallMarker",
@@ -536,6 +552,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "validUnixFixturePreservesExecutableAndSafeSymlink",
                 "validWindowsFixtureInstallsThenReusesWithoutMarkerRewrite",
                 "neighbouringRuntimeIsUntouchedAndDeletionRefusesOutsideCache",
+                "directExtensionArchiveInstallsThenReusesWithExactHash",
             ),
             "focused runtime installer tests",
             failures,
@@ -551,6 +568,10 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "lwjgl3ify.relauncher.forceSettings",
                 "verifyAutomaticJavaRuntime",
                 "packageBundledJavaClient",
+                "## Change 005 one-JAR runtime distribution",
+                "verifyRuntimeBundledModJar",
+                "lwjgl3ify/runtime/extensions/",
+                "lwjgl3ify.wdg.showConsole",
                 "Distant Horizons",
             ),
             "bundled Java automatic-runtime documentation",
@@ -567,6 +588,8 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "runtimeCacheRoot",
                 "Starting relaunched process {}",
                 "with Java source=",
+                "SHOW_CONSOLE_PROPERTY",
+                "CHILD_LOG_RELATIVE_PATH",
             ),
             "production automatic runtime relaunch wiring",
             failures,
@@ -581,6 +604,74 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "canonical runtime bundle locator",
             failures,
         )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProvider.java"),
+            listOf(
+                "windows-x86_64",
+                "linux-x86_64",
+                "macos-x86_64",
+                "macos-aarch64",
+                "RuntimeArchiveIntegrity.copyVerified",
+            ),
+            "embedded primary runtime provider",
+            failures,
+        )
+        checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocator.java"),
+            listOf(
+                "lwjgl3ify/runtime/extensions",
+                "lwjgl3ify-wdg-java21-",
+                "EXTENSION_DIRECTORY",
+            ),
+            "optional architecture extension locator",
+            failures,
+        )
+        checkFileContains(
+            relative("src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/RelauncherStubMain.java"),
+            listOf(
+                "redirectErrorStream(true)",
+                "Redirect.appendTo",
+                "Diagnostic log",
+                "graphicalConsole=",
+            ),
+            "hidden console persistent diagnostics",
+            failures,
+        )
+        checkFileContains(
+            relative("build.gradle.kts"),
+            listOf(
+                "packageRuntimeBundledModJar",
+                "verifyRuntimeBundledModJar",
+                "verifyRuntimeBundledModJarReproducibility",
+                "packageRuntimeExtensionArchives",
+            ),
+            "runtime-bearing release tasks",
+            failures,
+        )
+        checkFileContains(
+            relative("docs/RUNTIME_DISTRIBUTION.md"),
+            listOf(
+                "Primary one-JAR matrix",
+                "Optional architecture extensions",
+                "CurseForge moderation",
+                "lwjgl3ify-java21-child.log",
+            ),
+            "runtime redistribution and moderation documentation",
+            failures,
+        )
+
+        checkFileContains(
+            relative("docs/CURSEFORGE_MODERATION.md"),
+            listOf(
+                "No runtime is fetched from the network",
+                "No executable is disguised",
+                "byte-identical output",
+                "Submit that exact file openly for moderation",
+            ),
+            "CurseForge runtime disclosure",
+            failures,
+        )
+
         checkFileContains(
             relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeHostDetector.java"),
             listOf(
@@ -738,6 +829,19 @@ abstract class VerifyRepositoryTask : DefaultTask() {
                 "Your Terminal remains open",
             ),
             "Java runtime contract validation helper",
+            failures,
+        )
+
+        checkFileContains(
+            relative("scripts/validate-change005.sh"),
+            listOf(
+                "7500f19e88a47e6ecc587f33789766bbac365d19",
+                "verifyRuntimeBundledModJar",
+                "verifyRuntimeBundledModJarReproducibility",
+                "packageRuntimeExtensionArchives",
+                "configuration-cache-reuse",
+            ),
+            "Change 005 validation helper",
             failures,
         )
 
