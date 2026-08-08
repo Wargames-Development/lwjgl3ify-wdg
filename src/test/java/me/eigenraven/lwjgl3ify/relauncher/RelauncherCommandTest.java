@@ -28,6 +28,7 @@ public class RelauncherCommandTest {
     @Test
     public void configuredArgumentsPreserveMemoryGcCustomAndMacFirstThread() {
         RelauncherConfig.ConfigObject config = new RelauncherConfig.ConfigObject();
+        config.memoryMode = RelauncherConfig.MemoryMode.CUSTOM;
         config.minMemoryMB = 768;
         config.maxMemoryMB = 6144;
         config.garbageCollector = RelauncherConfig.GCOption.G1GC;
@@ -43,6 +44,28 @@ public class RelauncherCommandTest {
         assertTrue(command.contains("-XX:+UseG1GC"));
         assertTrue(command.contains("-Dcustom.path=/path with spaces"));
         assertTrue(command.contains("-XX:+AlwaysPreTouch"));
+    }
+
+    @Test
+    public void launcherMemoryIsInheritedAndCustomHeapDuplicatesAreRemoved() {
+        RelauncherConfig.ConfigObject config = new RelauncherConfig.ConfigObject();
+        config.memoryMode = RelauncherConfig.MemoryMode.INHERIT_LAUNCHER;
+        config.customOptions = new String[] { "-Xmx2G", "-Dkept=true" };
+        List<String> command = new ArrayList<String>();
+
+        Relauncher.appendConfiguredJvmArguments(
+            command,
+            false,
+            config,
+            java.util.Arrays.asList("-Xms128m", "-Xmx4096m", "-Xms256m", "-Xmx8192m", "-Dlauncher.only=true"));
+
+        assertTrue(command.contains("-Xms256m"));
+        assertTrue(command.contains("-Xmx8192m"));
+        assertTrue(!command.contains("-Xms128m"));
+        assertTrue(!command.contains("-Xmx4096m"));
+        assertTrue(!command.contains("-Xmx2G"));
+        assertTrue(command.contains("-Dkept=true"));
+        assertTrue(!command.contains("-Dlauncher.only=true"));
     }
 
     @Test

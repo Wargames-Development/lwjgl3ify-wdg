@@ -29,6 +29,7 @@ public class SettingsDialog {
     public JButton buttonRefreshJavas;
     public JButton buttonAddJava;
     public JTabbedPane tabbedPane1;
+    public JCheckBox optInheritLauncherMemory;
     public JSlider optMinMemory;
     public JComboBox<RelauncherConfig.GCOption> optGC;
     public JTextPane optCustom;
@@ -75,6 +76,9 @@ public class SettingsDialog {
         labelMinJavaVer.setText(String.format(translations.getString(TranslationsBundle.KEY_MIN_MOD_JAVA), 17));
         tabbedPane1.setTitleAt(0, translations.getString(TranslationsBundle.KEY_TAB_BASIC));
         tabbedPane1.setTitleAt(1, translations.getString(TranslationsBundle.KEY_TAB_ADVANCED));
+        optInheritLauncherMemory.setText(translations.getString(TranslationsBundle.KEY_INHERIT_LAUNCHER_MEMORY));
+        optInheritLauncherMemory
+            .setToolTipText(translations.getString(TranslationsBundle.KEY_INHERIT_LAUNCHER_MEMORY_TIP));
         lblMinMemory.setText(translations.getString(TranslationsBundle.KEY_MIN_MEMORY_MB));
         lblMaxMemory.setText(translations.getString(TranslationsBundle.KEY_MAX_MEMORY_MB));
         lblGarbageCollector.setText(translations.getString(TranslationsBundle.KEY_GARBAGE_COLLECTOR));
@@ -219,11 +223,21 @@ public class SettingsDialog {
                 TitledBorder.DEFAULT_POSITION,
                 null,
                 null));
+        optInheritLauncherMemory = new JCheckBox();
+        optInheritLauncherMemory.setSelected(true);
+        optInheritLauncherMemory.setText("KEY_INHERIT_LAUNCHER_MEMORY");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panelBasic.add(optInheritLauncherMemory, gbc);
         lblMinMemory = new JLabel();
         lblMinMemory.setText("KEY_MIN_MEMORY_MB");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 0;
+        gbc.gridy = 1;
         gbc.anchor = GridBagConstraints.EAST;
         panelBasic.add(lblMinMemory, gbc);
         optMinMemory = new JSlider();
@@ -236,7 +250,7 @@ public class SettingsDialog {
         optMinMemory.setValueIsAdjusting(false);
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
-        gbc.gridy = 0;
+        gbc.gridy = 1;
         gbc.weightx = 1.0;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -245,7 +259,7 @@ public class SettingsDialog {
         lblMaxMemory.setText("KEY_MAX_MEMORY_MB");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.anchor = GridBagConstraints.EAST;
         panelBasic.add(lblMaxMemory, gbc);
         optMaxMemory = new JSlider();
@@ -258,7 +272,7 @@ public class SettingsDialog {
         optMaxMemory.setValueIsAdjusting(false);
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.weightx = 1.0;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -267,13 +281,13 @@ public class SettingsDialog {
         lblGarbageCollector.setText("KEY_GARBAGE_COLLECTOR");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         gbc.anchor = GridBagConstraints.EAST;
         panelBasic.add(lblGarbageCollector, gbc);
         optGC = new JComboBox();
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panelBasic.add(optGC, gbc);
@@ -281,7 +295,7 @@ public class SettingsDialog {
         lblCustomOptions.setText("KEY_CUSTOM_OPTIONS");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.anchor = GridBagConstraints.WEST;
@@ -289,7 +303,7 @@ public class SettingsDialog {
         final JScrollPane scrollPane1 = new JScrollPane();
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.weighty = 1.0;

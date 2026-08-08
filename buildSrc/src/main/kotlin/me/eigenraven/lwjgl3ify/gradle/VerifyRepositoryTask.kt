@@ -130,6 +130,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelection.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/runtime/JavaLaunchSelector.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/ChildProcessSupervisor.java",
+            "src/main/java/me/eigenraven/lwjgl3ify/relauncher/JvmMemoryArgumentSupport.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/LaunchDecision.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/LaunchDecisionPolicy.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherUserInterface.java",
@@ -138,6 +139,7 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchController.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.java",
             "src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.form",
+            "src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/NativeExitDiagnostics.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeInstallerSmokeMain.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/AutomaticRuntimeSmokeMain.java",
@@ -153,11 +155,13 @@ abstract class VerifyRepositoryTask : DefaultTask() {
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/ProcessExitFixtureMain.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherChildExitSmokeMain.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfigTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherLegacyGsonCompatibilityTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherCommandTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/SettingsLaunchControllerTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/EmbeddedRuntimeArchiveProviderTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncher/runtime/RuntimeExtensionLocatorTest.java",
             "src/test/java/me/eigenraven/lwjgl3ify/relauncherstub/RelaunchLogSupportTest.java",
+            "src/test/java/me/eigenraven/lwjgl3ify/relauncherstub/NativeExitDiagnosticsTest.java",
             "src/forgePatches/ScriptEngineServices.txt",
             "src/forgePatches/lwjgl3ify-forgePatches-version.txt",
             "src/main/java/me/eigenraven/lwjgl3ify/core/Lwjgl3ifyCoremod.java",
@@ -686,14 +690,38 @@ abstract class VerifyRepositoryTask : DefaultTask() {
         )
         checkFileContains(
             relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java"),
-            listOf("useBundledJava = true", "javaInstallationsCache == null", "garbageCollector == null"),
+            listOf(
+                "useBundledJava = true",
+                "javaInstallationsCache == null",
+                "garbageCollector == null",
+                "MemoryMode.INHERIT_LAUNCHER",
+                "effectiveMemoryArguments",
+            ),
             "backward-compatible relauncher config",
             failures,
         )
         checkFileContains(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java"),
+            listOf("new JsonParser().parse(configContents)"),
+            "Minecraft 1.7.10 Gson 2.2.4-compatible config parsing",
+            failures,
+        )
+        checkFileDoesNotContain(
+            relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/RelauncherConfig.java"),
+            listOf("JsonParser.parseString"),
+            "Java 8 bootstrap config parser",
+            failures,
+        )
+        checkFileContains(
             relative("src/main/java/me/eigenraven/lwjgl3ify/relauncher/SettingsDialog.form"),
-            listOf("optUseBundledJava", "lblBundledStatus"),
+            listOf("optUseBundledJava", "lblBundledStatus", "optInheritLauncherMemory"),
             "packaged Java settings form",
+            failures,
+        )
+        checkFileContains(
+            relative("src/relauncherStub/java/me/eigenraven/lwjgl3ify/relauncherstub/NativeExitDiagnostics.java"),
+            listOf("0xC000041D", "STATUS_FATAL_USER_CALLBACK_EXCEPTION", "hs_err_pid*.log"),
+            "native child exit diagnostics",
             failures,
         )
         checkFileDoesNotContain(

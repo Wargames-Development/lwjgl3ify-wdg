@@ -1,6 +1,7 @@
 package me.eigenraven.lwjgl3ify.relauncher;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,8 +14,18 @@ import net.minecraft.launchwrapper.Launch;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class RelauncherConfig {
+
+    public enum MemoryMode {
+
+        /** Preserve the memory allocation explicitly supplied by CurseForge, Prism, or another launcher. */
+        INHERIT_LAUNCHER,
+        /** Ignore launcher heap flags and use minMemoryMB/maxMemoryMB from this configuration. */
+        CUSTOM
+    }
 
     public enum GCOption {
 
@@ -38,6 +49,7 @@ public class RelauncherConfig {
         // Basic
         public String[] javaInstallationsCache = new String[0];
         public int javaInstallation = 0;
+        public MemoryMode memoryMode = MemoryMode.INHERIT_LAUNCHER;
         public int minMemoryMB = 512;
         public int maxMemoryMB = 4096;
         public GCOption garbageCollector = GCOption.G1GC;
@@ -104,13 +116,14 @@ public class RelauncherConfig {
         }
 
         public List<String> toJvmArgs() {
+            return toJvmArgs(
+                ManagementFactory.getRuntimeMXBean()
+                    .getInputArguments());
+        }
+
+        public List<String> toJvmArgs(List<String> launcherJvmArguments) {
             final List<String> out = new ArrayList<>();
-            if (minMemoryMB > 0) {
-                out.add("-Xms" + minMemoryMB + "M");
-            }
-            if (maxMemoryMB > 0) {
-                out.add("-Xmx" + maxMemoryMB + "M");
-            }
+            out.addAll(effectiveMemoryArguments(launcherJvmArguments));
             GCOption selectedGarbageCollector = garbageCollector == null ? GCOption.G1GC : garbageCollector;
             out.addAll(Arrays.asList(selectedGarbageCollector.FLAGS));
             if (allowDebugger) {
@@ -136,15 +149,22 @@ public class RelauncherConfig {
             if (rfbDumpPerTransformer) {
                 out.add("-Drfb.dumpLoadedClassesPerTransformer=true");
             }
-            String[] selectedCustomOptions = customOptions == null ? new String[0] : customOptions;
-            for (final String arg : selectedCustomOptions) {
-                if (arg == null || arg.trim()
-                    .isEmpty()) {
-                    continue;
-                }
-                out.add(arg.trim());
-            }
+            out.addAll(JvmMemoryArgumentSupport.removeMemorySizingArguments(customOptions));
             return out;
+        }
+
+        public List<String> effectiveMemoryArguments(List<String> launcherJvmArguments) {
+            final MemoryMode selectedMemoryMode = memoryMode == null ? MemoryMode.INHERIT_LAUNCHER : memoryMode;
+            if (selectedMemoryMode == MemoryMode.INHERIT_LAUNCHER) {
+                final List<String> inherited = JvmMemoryArgumentSupport
+                    .extractExplicitMemoryArguments(launcherJvmArguments);
+                if (!inherited.isEmpty()) return inherited;
+            }
+
+            final List<String> configured = new ArrayList<String>();
+            if (minMemoryMB > 0) configured.add("-Xms" + minMemoryMB + "M");
+            if (maxMemoryMB > 0) configured.add("-Xmx" + maxMemoryMB + "M");
+            return configured;
         }
     }
 
@@ -162,9 +182,21 @@ public class RelauncherConfig {
         if (existingConfig) {
             try {
                 final String configContents = new String(Files.readAllBytes(earlyConfigPath), StandardCharsets.UTF_8);
-                loaded = gson.fromJson(configContents, ConfigObject.class);
+                // Minecraft 1.7.10 supplies Gson 2.2.4 to the Java 8 bootstrap process.
+                // Use the legacy instance parser API here; the newer static helper is unavailable.
+                final JsonObject configRoot = new JsonParser().parse(configContents)
+                    .getAsJsonObject();
+                final boolean hasMemoryMode = configRoot.has("memoryMode");
+                loaded = gson.fromJson(configRoot, ConfigObject.class);
                 if (loaded == null) {
                     throw new IllegalArgumentException("configuration root is null");
+                }
+                if (!hasMemoryMode) {
+                    // Change 006 migration: untouched legacy defaults represented an invisible 4 GB override.
+                    // Preserve genuinely customised legacy values, but make the old defaults inherit the launcher.
+                    loaded.memoryMode = loaded.minMemoryMB == 512 && loaded.maxMemoryMB == 4096
+                        ? MemoryMode.INHERIT_LAUNCHER
+                        : MemoryMode.CUSTOM;
                 }
             } catch (IOException e) {
                 throw new RuntimeException("Could not read relauncher configuration at " + earlyConfigPath, e);
@@ -184,6 +216,7 @@ public class RelauncherConfig {
         if (loaded.javaInstallationsCache == null) loaded.javaInstallationsCache = new String[0];
         if (loaded.customOptions == null) loaded.customOptions = new String[0];
         if (loaded.garbageCollector == null) loaded.garbageCollector = GCOption.G1GC;
+        if (loaded.memoryMode == null) loaded.memoryMode = MemoryMode.INHERIT_LAUNCHER;
         if (loaded.javaInstallationsCache.length == 0) {
             loaded.javaInstallation = -1;
         } else {

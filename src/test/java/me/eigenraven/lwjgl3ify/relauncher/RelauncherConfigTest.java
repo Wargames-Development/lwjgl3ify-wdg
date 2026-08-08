@@ -38,6 +38,7 @@ public class RelauncherConfigTest {
         RelauncherConfig.load(config);
 
         assertTrue(RelauncherConfig.config.useBundledJava);
+        assertEquals(RelauncherConfig.MemoryMode.CUSTOM, RelauncherConfig.config.memoryMode);
         assertArrayEquals(new String[] { "/one/java", "/two/java" }, RelauncherConfig.config.javaInstallationsCache);
         assertEquals(1, RelauncherConfig.config.javaInstallation);
         assertEquals(1024, RelauncherConfig.config.minMemoryMB);
@@ -81,4 +82,20 @@ public class RelauncherConfigTest {
         }
         assertArrayEquals(broken, Files.readAllBytes(config));
     }
+
+    @Test
+    public void untouchedLegacyMemoryDefaultsMigrateToLauncherInheritance() throws Exception {
+        Path config = temporary.newFolder("legacy-default-memory")
+            .toPath()
+            .resolve("lwjgl3ify-relauncher.json");
+        Files.write(
+            config,
+            ("{\n" + "  \"minMemoryMB\": 512,\n" + "  \"maxMemoryMB\": 4096\n" + "}\n")
+                .getBytes(StandardCharsets.UTF_8));
+
+        RelauncherConfig.load(config);
+
+        assertEquals(RelauncherConfig.MemoryMode.INHERIT_LAUNCHER, RelauncherConfig.config.memoryMode);
+    }
+
 }

@@ -67,3 +67,6 @@ Desktop.ini
 # Keep the checked-in Windows wrapper despite the broad local batch-file rule.
 *.bat
 !gradlew.bat
+
+# JVM heap dumps from local Gradle or runtime failures
+/java_pid*.hprof

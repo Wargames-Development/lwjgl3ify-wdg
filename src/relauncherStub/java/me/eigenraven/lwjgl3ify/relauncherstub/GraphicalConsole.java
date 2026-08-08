@@ -168,7 +168,8 @@ public class GraphicalConsole {
                     final Process terminated = process.onExit()
                         .get();
                     final int exitCode = terminated.exitValue();
-                    writeLogLine("[lwjgl3ify-wdg] managed Java child exited with code " + exitCode);
+                    final String exitDescription = NativeExitDiagnostics.describe(exitCode);
+                    writeLogLine("[lwjgl3ify-wdg] managed Java child exited with " + exitDescription);
                     closeLogWriter();
                     invokeOnSwingThread(false, () -> {
                         killButton.setEnabled(false);
@@ -177,7 +178,7 @@ public class GraphicalConsole {
                                 .insertString(
                                     logArea.getDocument()
                                         .getLength(),
-                                    "Process exited with code " + exitCode,
+                                    "Process exited with " + exitDescription,
                                     null);
                         } catch (BadLocationException e) {
                             // ignored

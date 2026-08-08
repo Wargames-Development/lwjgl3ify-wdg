@@ -334,7 +334,30 @@ public class Relauncher {
 
         final List<String> childClasspath = createClasspath();
         verifyProductionArtifact(myJarPath, childClasspath);
-        final List<String> cmd = createRelaunchArguments(launchSelection, childClasspath, supervisedLaunch);
+        final List<String> parentJvmArguments = new ArrayList<String>(
+            ManagementFactory.getRuntimeMXBean()
+                .getInputArguments());
+        final List<String> effectiveMemoryArguments = RelauncherConfig.config
+            .effectiveMemoryArguments(parentJvmArguments);
+        final List<String> ignoredCustomMemoryArguments = JvmMemoryArgumentSupport.extractExplicitMemoryArguments(
+            RelauncherConfig.config.customOptions == null ? java.util.Collections.<String>emptyList()
+                : Arrays.asList(RelauncherConfig.config.customOptions));
+        if (!ignoredCustomMemoryArguments.isEmpty()) {
+            logger.warn(
+                "Ignoring heap sizing arguments in customOptions {}; select CUSTOM memory mode instead",
+                JvmMemoryArgumentSupport.describe(ignoredCustomMemoryArguments));
+        }
+        logger.info(
+            "Managed Java memory policy={} launcherHeap={} childHeap={}",
+            RelauncherConfig.config.memoryMode,
+            JvmMemoryArgumentSupport
+                .describe(JvmMemoryArgumentSupport.extractExplicitMemoryArguments(parentJvmArguments)),
+            JvmMemoryArgumentSupport.describe(effectiveMemoryArguments));
+        final List<String> cmd = createRelaunchArguments(
+            launchSelection,
+            childClasspath,
+            supervisedLaunch,
+            parentJvmArguments);
         cmd.add(supervisedLaunch ? SUPERVISED_CLIENT_MAIN : STANDARD_CLIENT_MAIN);
         cmd.addAll(
             Arrays.asList(
@@ -411,8 +434,18 @@ public class Relauncher {
 
     List<String> createRelaunchArguments(JavaLaunchSelection launchSelection, List<String> childClasspath,
         boolean supervisedLaunch) {
+        return createRelaunchArguments(
+            launchSelection,
+            childClasspath,
+            supervisedLaunch,
+            ManagementFactory.getRuntimeMXBean()
+                .getInputArguments());
+    }
+
+    List<String> createRelaunchArguments(JavaLaunchSelection launchSelection, List<String> childClasspath,
+        boolean supervisedLaunch, List<String> parentJvmArguments) {
         final List<String> cmd = new ArrayList<>();
-        appendConfiguredJvmArguments(cmd, SystemUtils.IS_OS_MAC, RelauncherConfig.config);
+        appendConfiguredJvmArguments(cmd, SystemUtils.IS_OS_MAC, RelauncherConfig.config, parentJvmArguments);
         cmd.add("-cp");
         cmd.add(StringUtils.join(childClasspath, File.pathSeparatorChar));
         for (final Map.Entry<Object, Object> prop : System.getProperties()
@@ -528,9 +561,19 @@ public class Relauncher {
 
     static void appendConfiguredJvmArguments(List<String> command, boolean macos,
         RelauncherConfig.ConfigObject config) {
+        appendConfiguredJvmArguments(
+            command,
+            macos,
+            config,
+            ManagementFactory.getRuntimeMXBean()
+                .getInputArguments());
+    }
+
+    static void appendConfiguredJvmArguments(List<String> command, boolean macos, RelauncherConfig.ConfigObject config,
+        List<String> parentJvmArguments) {
         command.addAll(Arrays.asList(RECOMMENDED_JAVA_ARGS));
         if (macos) command.add("-XstartOnFirstThread");
-        command.addAll(config.toJvmArgs());
+        command.addAll(config.toJvmArgs(parentJvmArguments));
     }
 
     public static void appendManagedRuntimeProperties(List<String> command, JavaLaunchSelection launchSelection) {

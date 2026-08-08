@@ -307,6 +307,8 @@ public class RelauncherUserInterface {
             }
             contents.optUseBundledJava.setSelected(initCfg.useBundledJava);
             contents.lblBundledStatus.setText(automatic.getMessage());
+            contents.optInheritLauncherMemory
+                .setSelected(initCfg.memoryMode == RelauncherConfig.MemoryMode.INHERIT_LAUNCHER);
             contents.optMinMemory.setValue(initCfg.minMemoryMB);
             contents.optMaxMemory.setValue(initCfg.maxMemoryMB);
             contents.optGC.setModel(new GCComboModel());
@@ -325,6 +327,8 @@ public class RelauncherUserInterface {
             contents.optRfbDumpTransformers.setSelected(initCfg.rfbDumpPerTransformer);
             contents.optHideOnFutureLaunches.setSelected(initCfg.hideSettingsOnLaunch);
 
+            updateMemoryControls(contents);
+            contents.optInheritLauncherMemory.addActionListener(al -> updateMemoryControls(contents));
             refreshJavaInstalls(contents);
 
             settingsDialog.addWindowListener(new WindowAdapter() {
@@ -415,10 +419,21 @@ public class RelauncherUserInterface {
         return out;
     }
 
+    private static void updateMemoryControls(SettingsDialog contents) {
+        final boolean customMemory = !contents.optInheritLauncherMemory.isSelected();
+        contents.optMinMemory.setEnabled(customMemory);
+        contents.optMaxMemory.setEnabled(customMemory);
+        contents.lblMinMemory.setEnabled(customMemory);
+        contents.lblMaxMemory.setEnabled(customMemory);
+    }
+
     private static void saveConfig(SettingsDialog contents) {
         final RelauncherConfig.ConfigObject initCfg = RelauncherConfig.config;
         initCfg.javaInstallationsCache = comboToList(contents.comboJavaExecutable.getModel()).toArray(new String[0]);
         initCfg.javaInstallation = contents.comboJavaExecutable.getSelectedIndex();
+        initCfg.memoryMode = contents.optInheritLauncherMemory.isSelected()
+            ? RelauncherConfig.MemoryMode.INHERIT_LAUNCHER
+            : RelauncherConfig.MemoryMode.CUSTOM;
         initCfg.minMemoryMB = contents.optMinMemory.getValue();
         initCfg.maxMemoryMB = contents.optMaxMemory.getValue();
         initCfg.garbageCollector = (RelauncherConfig.GCOption) contents.optGC.getSelectedItem();

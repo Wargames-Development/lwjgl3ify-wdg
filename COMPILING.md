@@ -182,6 +182,8 @@ The generated JAR embeds exactly `windows-x86_64`, `linux-x86_64`, `macos-x86_64
 
 The graphical relaunch console is disabled by default. Child output remains in `logs/lwjgl3ify-java21-child.log` with launch-time rotation. Support staff can temporarily restore the console with `-Dlwjgl3ify.wdg.showConsole=true`.
 
+Managed Java memory inheritance and native process status diagnostics are documented in [docs/MANAGED_MEMORY_AND_NATIVE_CRASHES.md](docs/MANAGED_MEMORY_AND_NATIVE_CRASHES.md). Acceptance testing must confirm that CurseForge and Prism heap arguments are preserved in the child log.
+
 ## Change 004h production artifact validation
 
 The only production client mod provider is `productionModArtifact`, backed by `reobfJar.archiveFile`. Expected task roles are:

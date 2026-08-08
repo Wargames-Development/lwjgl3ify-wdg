@@ -21,6 +21,8 @@ public class TranslationsBundle extends ListResourceBundle {
     public static final String KEY_TAB_BASIC = "tabBasic";
     public static final String KEY_TAB_ADVANCED = "tabAdvanced";
     public static final String KEY_JAVA_OPTIONS = "javaOptions";
+    public static final String KEY_INHERIT_LAUNCHER_MEMORY = "inheritLauncherMemory";
+    public static final String KEY_INHERIT_LAUNCHER_MEMORY_TIP = "inheritLauncherMemoryTip";
     public static final String KEY_MIN_MEMORY_MB = "minMemoryMB";
     public static final String KEY_MAX_MEMORY_MB = "maxMemoryMB";
     public static final String KEY_GARBAGE_COLLECTOR = "garbageCollector";
@@ -58,6 +60,8 @@ public class TranslationsBundle extends ListResourceBundle {
             { KEY_TAB_BASIC, "Basic" },
             { KEY_TAB_ADVANCED, "Advanced" },
             { KEY_JAVA_OPTIONS, "Java options: " },
+            { KEY_INHERIT_LAUNCHER_MEMORY, "Use the memory allocation from CurseForge, Prism, or the launcher" },
+            { KEY_INHERIT_LAUNCHER_MEMORY_TIP, "Recommended. Custom memory values below are used only when this is disabled, or when the launcher supplies no explicit heap setting." },
             { KEY_MIN_MEMORY_MB, "Min memory [MB]" },
             { KEY_MAX_MEMORY_MB, "Max memory [MB]" },
             { KEY_GARBAGE_COLLECTOR, "Garbage collector" },

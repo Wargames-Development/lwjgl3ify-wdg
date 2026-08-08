@@ -54,6 +54,10 @@ public class RelauncherStubMain {
             "[lwjgl3ify-wdg] launching managed Java child; graphicalConsole=" + showConsole
                 + " executable="
                 + javaBinary);
+        RelaunchLogSupport.append(
+            childLog,
+            "[lwjgl3ify-wdg] effective child heap arguments: "
+                + NativeExitDiagnostics.describeHeapArguments(Paths.get(javaArgFile)));
         if (showConsole) {
             childBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
             childBuilder.redirectError(ProcessBuilder.Redirect.PIPE);
@@ -65,11 +69,12 @@ public class RelauncherStubMain {
             child = childBuilder.start();
         }
         final int exitCode = ChildProcessSupervisor.waitFor(child);
-        RelaunchLogSupport.append(childLog, "[lwjgl3ify-wdg] managed Java child exited with code " + exitCode);
-        System.out.println("Relaunched Java child exited with code " + exitCode);
+        final String exitDescription = NativeExitDiagnostics.describe(exitCode);
+        RelaunchLogSupport.append(childLog, "[lwjgl3ify-wdg] managed Java child exited with " + exitDescription);
+        System.out.println("Relaunched Java child exited with " + exitDescription);
         if (exitCode != 0 && !showConsole) {
             showFailure(
-                "The managed Java game process exited with code " + exitCode + ".\n\nDiagnostic log:\n" + childLog,
+                NativeExitDiagnostics.buildFailureMessage(exitCode, childLog),
                 "lwjgl3ify managed Java failure");
         }
         return exitCode;
