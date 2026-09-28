@@ -4,7 +4,7 @@
 
 Minecraft Forge 1.7.10 launchers commonly start under Java 8, while the maintained lwjgl3ify and Distant Horizons stack requires a modern Java child process. lwjgl3ify-WDG provides a transparent, local, portable Java 21 runtime so players do not need to install or select another system Java manually.
 
-The implementation does not install Java into the operating system, alter `JAVA_HOME`, modify launcher accounts, read authentication tokens, or contact a runtime download service. It selects a verified archive, extracts it into the existing lwjgl3ify managed cache, and relaunches only the current game process.
+The slim JAR can download the manifest-pinned Temurin archive from the official GitHub release if neither a verified cache nor a matching installed Java nor a local archive is available. It verifies size and SHA-256 before extraction into the lwjgl3ify managed cache. It does not install Java into the operating system, alter `JAVA_HOME`, modify launcher accounts, or read authentication tokens.
 
 ## Primary one-JAR matrix
 
@@ -41,12 +41,15 @@ The legacy complete bundle at `lwjgl3ify/runtime/lwjgl3ify-wdg-java21-runtimes.z
 ## Selection order
 
 1. An explicit normalized-bundle property or environment override.
-2. The exact embedded primary runtime for the detected platform.
-3. The exact optional extension filename for the detected platform.
-4. The legacy complete normalized bundle.
-5. The preserved manual Java selection path.
+2. A verified managed-cache installation for the detected platform.
+3. A matching installed Temurin 21 runtime (unless `-Dlwjgl3ify.relauncher.detectInstalledJava=false`).
+4. The exact embedded primary runtime, if present in a runtime-bearing JAR.
+5. The exact optional extension filename for the detected platform.
+6. The legacy complete normalized bundle.
+7. The exact Temurin archive from the release pinned in the manifest (unless `-Dlwjgl3ify.relauncher.downloadRuntime=false`).
+8. The preserved manual Java selection path if an offline download cannot complete.
 
-A corrupt present source fails closed. It is not silently replaced from the network.
+A corrupt present local source fails closed. A downloaded archive must match the manifest size and SHA-256 before installation.
 
 ## Console and logs
 
@@ -78,6 +81,6 @@ The project page and release notes must identify:
 * the upstream lwjgl3ify source and WDG fork source;
 * the applicable upstream and Temurin licences and notices;
 * that the runtime is portable and not installed system-wide;
-* that no moderation bypass, executable disguise, or dynamic download is used.
+* that the slim JAR downloads a hash-pinned Temurin archive on a fresh machine, while the older runtime-bearing distribution embeds archives.
 
 The runtime-bearing JAR must be submitted openly for CurseForge moderation. Approval of one exact SHA-256 does not automatically approve a rebuilt or changed JAR.

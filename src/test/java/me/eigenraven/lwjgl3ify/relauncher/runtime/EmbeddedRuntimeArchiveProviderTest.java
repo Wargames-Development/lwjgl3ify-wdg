@@ -31,6 +31,7 @@ public class EmbeddedRuntimeArchiveProviderTest {
             Collections.singleton("amd64"),
             "gnu",
             "runtimes/linux-x86_64.tar.gz",
+            "OpenJDK21U-jre_x64_linux_hotspot_21.0.11_10.tar.gz",
             "tar.gz",
             1L,
             repeat('0', 64),

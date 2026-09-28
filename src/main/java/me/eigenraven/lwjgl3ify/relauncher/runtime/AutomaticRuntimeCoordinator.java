@@ -14,6 +14,7 @@ public final class AutomaticRuntimeCoordinator {
     public static final String MANAGED_PLATFORM_PROPERTY = "lwjgl3ify.relauncher.managedPlatform";
     public static final String MANAGED_RUNTIME_VERSION_PROPERTY = "lwjgl3ify.relauncher.managedRuntimeVersion";
     public static final String DETECT_INSTALLED_PROPERTY = "lwjgl3ify.relauncher.detectInstalledJava";
+    public static final String DOWNLOAD_RUNTIME_PROPERTY = "lwjgl3ify.relauncher.downloadRuntime";
 
     public interface Installer {
 
@@ -81,6 +82,7 @@ public final class AutomaticRuntimeCoordinator {
         copyProperty(properties, DISABLE_PROPERTY);
         copyProperty(properties, FORCE_SETTINGS_PROPERTY);
         copyProperty(properties, DETECT_INSTALLED_PROPERTY);
+        copyProperty(properties, DOWNLOAD_RUNTIME_PROPERTY);
         return prepare(gameDirectory, cacheRoot, useBundledJava, properties, System.getenv());
     }
 
@@ -144,6 +146,7 @@ public final class AutomaticRuntimeCoordinator {
         }
 
         RuntimeBundleLocator.Result source;
+        Path downloadedArchive = null;
         try {
             source = bundleLocator.locateExplicit(gameDirectory, properties, environment);
             if (source != null && !source.isAvailable()) {
@@ -166,7 +169,26 @@ public final class AutomaticRuntimeCoordinator {
                     return AutomaticRuntimeResult.failed(legacy.getMessage(), null, legacy, host, forceSettings);
                 }
             }
+            if (source == null && !explicitArchive
+                && !"false".equalsIgnoreCase(value(properties, DOWNLOAD_RUNTIME_PROPERTY, "true"))) {
+                try {
+                    downloadedArchive = new RuntimeArchiveDownloader().download(manifest, platform, cacheRoot);
+                } catch (IOException exception) {
+                    return AutomaticRuntimeResult.unavailable(
+                        "Could not download the pinned Temurin runtime for " + platform.getId()
+                            + ": "
+                            + exception.getMessage(),
+                        null,
+                        host,
+                        forceSettings);
+                }
+                source = RuntimeBundleLocator.Result.directArchive(
+                    RuntimeBundleLocator.Source.ADOPTIUM_DOWNLOAD,
+                    downloadedArchive,
+                    "Pinned Temurin runtime downloaded from Eclipse Adoptium's GitHub release");
+            }
         } catch (RuntimeException exception) {
+            cleanupDownload(downloadedArchive);
             return AutomaticRuntimeResult.failed(
                 "Packaged Java source path is invalid: " + exception.getMessage(),
                 exception,
@@ -174,15 +196,17 @@ public final class AutomaticRuntimeCoordinator {
                 host,
                 forceSettings);
         } catch (RuntimeInstallationException exception) {
+            cleanupDownload(downloadedArchive);
             return AutomaticRuntimeResult.failed(
-                "Embedded Java runtime validation failed: " + exception.getMessage(),
+                "Java runtime validation failed: " + exception.getMessage(),
                 exception,
                 null,
                 host,
                 forceSettings);
         } catch (IOException exception) {
+            cleanupDownload(downloadedArchive);
             return AutomaticRuntimeResult.failed(
-                "Embedded Java runtime preparation failed: " + exception.getMessage(),
+                "Java runtime preparation or download failed: " + exception.getMessage(),
                 exception,
                 null,
                 host,
@@ -226,6 +250,17 @@ public final class AutomaticRuntimeCoordinator {
                 source,
                 host,
                 forceSettings);
+        } finally {
+            cleanupDownload(downloadedArchive);
+        }
+    }
+
+    private static void cleanupDownload(Path archive) {
+        if (archive == null) return;
+        try {
+            RuntimeArchiveDownloader.cleanup(archive);
+        } catch (IOException ignored) {
+            // Temporary downloads are never used after installation.
         }
     }
 

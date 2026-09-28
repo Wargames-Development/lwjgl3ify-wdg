@@ -18,7 +18,8 @@ public final class RuntimeBundleLocator {
         ENVIRONMENT,
         GAME_DIRECTORY,
         EMBEDDED_JAR,
-        EXTENSION_DIRECTORY
+        EXTENSION_DIRECTORY,
+        ADOPTIUM_DOWNLOAD
     }
 
     public enum Kind {

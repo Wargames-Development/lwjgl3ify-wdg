@@ -136,6 +136,15 @@ public final class RuntimeManifest {
 
             String normalized = RuntimePathSafety
                 .requireSafeRelative(requiredString(platform, "normalizedBundlePath"), "normalizedBundlePath");
+            String inputFilename = optionalString(platform, "inputFilename");
+            if (inputFilename != null) {
+                inputFilename = RuntimePathSafety.requireSafeRelative(inputFilename, "inputFilename");
+                if (inputFilename.contains("/")) {
+                    throw new RuntimeInstallationException("Runtime inputFilename must be a filename: " + id);
+                }
+            } else if (requireCanonicalSix) {
+                throw new RuntimeInstallationException("Canonical runtime inputFilename is missing: " + id);
+            }
             if (!normalized.startsWith("runtimes/")) {
                 throw new RuntimeInstallationException("normalizedBundlePath must be below runtimes/: " + normalized);
             }
@@ -200,6 +209,7 @@ public final class RuntimeManifest {
                     archAliases,
                     libc,
                     normalized,
+                    inputFilename,
                     type,
                     size,
                     hash,

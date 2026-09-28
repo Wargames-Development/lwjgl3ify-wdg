@@ -6,7 +6,7 @@ This repository is the [Wargames Development Group fork](https://github.com/Warg
 
 Minecraft may initially be launched under Java 8 when using the existing experimental relauncher, which then transfers execution to a supported modern Java runtime. That legacy initial process does **not** make this source repository an all-Java-8 build: Gradle, special source sets, and development run tasks use separate modern JVM/toolchain roles.
 
-The repository contains a deterministic Eclipse Temurin Java 21 JRE manifest, secure installation, and a bounded automatic-runtime relaunch integration. WDG release artifacts can package the four common desktop runtimes directly inside one verified lwjgl3ify JAR: Windows x86-64, Linux x86-64, Intel macOS, and Apple Silicon macOS. Windows ARM64 and Linux ARM64 remain available as transparent, hash-pinned extension archives placed under `lwjgl3ify/runtime/extensions/`. No runtime is installed system-wide. See [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md) and [docs/RUNTIME_DISTRIBUTION.md](docs/RUNTIME_DISTRIBUTION.md). Distant Horizons remains a separate mod and dependency consumer.
+The repository contains a deterministic Eclipse Temurin Java 21 JRE manifest, secure installation, and an automatic-runtime relaunch integration. The slim WDG JAR reuses a verified cache or finds a matching installed Temurin 21 runtime. On a fresh machine it downloads the exact manifest-pinned archive from the official Temurin GitHub release, verifies its size and SHA-256, and installs it into the managed cache. No runtime is installed system-wide. Offline installs can still use the optional hash-pinned extension archives or the manual Java selection. See [docs/BUNDLED_JAVA.md](docs/BUNDLED_JAVA.md) and [docs/RUNTIME_DISTRIBUTION.md](docs/RUNTIME_DISTRIBUTION.md). Distant Horizons remains a separate mod and dependency consumer.
 
 Supported game baseline: **Minecraft 1.7.10** with **Forge 10.13.4.1614**. Developers should read [SETUP.md](SETUP.md) before importing the project and [COMPILING.md](COMPILING.md) for validation, distribution, run-task, and clean source-package commands.
 
@@ -48,7 +48,7 @@ For MultiMC, you need to manually put in extra java arguments, Prism Launcher ca
 
 ### WDG automatic-runtime installation
 
-For a WDG runtime-bearing release, place the single `lwjgl3ify-VERSION.jar` in `mods/` and let the launcher start Minecraft under Java 8 as usual. The JAR contains the four common desktop Eclipse Temurin Java 21 runtimes. lwjgl3ify verifies and extracts only the matching runtime into its managed cache, then relaunches the game without a graphical console. No system-wide Java installation or launcher Java selection is required.
+Place the slim `lwjgl3ify-VERSION.jar` in `mods/` and let the launcher start Minecraft under Java 8 as usual. lwjgl3ify reuses a verified Java 21 cache, finds a compatible installed Temurin runtime, or downloads and verifies the pinned archive on a fresh machine. It then relaunches the game without a graphical console. No system-wide Java installation or launcher Java selection is required when the download succeeds.
 
 Windows ARM64 and Linux ARM64 users can place the exact optional extension archive in `lwjgl3ify/runtime/extensions/`; do not extract or rename it. If no embedded or extension runtime matches, the existing manual Java-selection path remains available. Diagnostic output is retained in `logs/lwjgl3ify-java21-child.log`, and support staff can explicitly restore the graphical console with `-Dlwjgl3ify.wdg.showConsole=true`.
 

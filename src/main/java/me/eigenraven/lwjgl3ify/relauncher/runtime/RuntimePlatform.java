@@ -15,6 +15,7 @@ public final class RuntimePlatform {
     private final Set<String> architectureAliases;
     private final String libc;
     private final String normalizedBundlePath;
+    private final String inputFilename;
     private final String archiveType;
     private final long sizeBytes;
     private final String sha256;
@@ -26,9 +27,9 @@ public final class RuntimePlatform {
     private final Map<String, String> expectedReleaseProperties;
 
     RuntimePlatform(String id, String operatingSystem, String architecture, Set<String> operatingSystemAliases,
-        Set<String> architectureAliases, String libc, String normalizedBundlePath, String archiveType, long sizeBytes,
-        String sha256, String archiveRoot, String javaHomeRelativePath, String javaExecutableRelativePath,
-        String windowsGuiExecutableRelativePath, String releaseFileRelativePath,
+        Set<String> architectureAliases, String libc, String normalizedBundlePath, String inputFilename,
+        String archiveType, long sizeBytes, String sha256, String archiveRoot, String javaHomeRelativePath,
+        String javaExecutableRelativePath, String windowsGuiExecutableRelativePath, String releaseFileRelativePath,
         Map<String, String> expectedReleaseProperties) {
         this.id = id;
         this.operatingSystem = operatingSystem;
@@ -39,6 +40,7 @@ public final class RuntimePlatform {
             .unmodifiableSet(new java.util.LinkedHashSet<String>(architectureAliases));
         this.libc = libc;
         this.normalizedBundlePath = normalizedBundlePath;
+        this.inputFilename = inputFilename;
         this.archiveType = archiveType;
         this.sizeBytes = sizeBytes;
         this.sha256 = sha256;
@@ -77,6 +79,10 @@ public final class RuntimePlatform {
 
     public String getNormalizedBundlePath() {
         return normalizedBundlePath;
+    }
+
+    public String getInputFilename() {
+        return inputFilename;
     }
 
     public String getArchiveType() {

@@ -199,6 +199,7 @@ public class AutomaticRuntimeCoordinatorTest {
         values.put("os.name", osName);
         values.put("os.arch", osArch);
         values.put(AutomaticRuntimeCoordinator.DETECT_INSTALLED_PROPERTY, "false");
+        values.put(AutomaticRuntimeCoordinator.DOWNLOAD_RUNTIME_PROPERTY, "false");
         return values;
     }
 
