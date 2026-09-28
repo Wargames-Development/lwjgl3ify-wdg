@@ -13,6 +13,7 @@ public final class AutomaticRuntimeCoordinator {
     public static final String MANAGED_RUNTIME_PROPERTY = "lwjgl3ify.relauncher.managedRuntime";
     public static final String MANAGED_PLATFORM_PROPERTY = "lwjgl3ify.relauncher.managedPlatform";
     public static final String MANAGED_RUNTIME_VERSION_PROPERTY = "lwjgl3ify.relauncher.managedRuntimeVersion";
+    public static final String DETECT_INSTALLED_PROPERTY = "lwjgl3ify.relauncher.detectInstalledJava";
 
     public interface Installer {
 
@@ -79,6 +80,7 @@ public final class AutomaticRuntimeCoordinator {
         copyProperty(properties, RuntimeBundleLocator.PROPERTY_NAME);
         copyProperty(properties, DISABLE_PROPERTY);
         copyProperty(properties, FORCE_SETTINGS_PROPERTY);
+        copyProperty(properties, DETECT_INSTALLED_PROPERTY);
         return prepare(gameDirectory, cacheRoot, useBundledJava, properties, System.getenv());
     }
 
@@ -116,6 +118,29 @@ public final class AutomaticRuntimeCoordinator {
             platform = manifest.selectPlatform(host);
         } catch (RuntimeInstallationException exception) {
             return AutomaticRuntimeResult.unavailable(exception.getMessage(), null, host, forceSettings);
+        }
+
+        // An explicit archive override remains authoritative for recovery and diagnostics.
+        boolean explicitArchive = (properties != null && properties.containsKey(RuntimeBundleLocator.PROPERTY_NAME))
+            || (environment != null && environment.containsKey(RuntimeBundleLocator.ENVIRONMENT_NAME));
+        if (!explicitArchive) {
+            // An archive-free release can reuse a completed installation.
+            try {
+                RuntimeInstallResult cached = new RuntimeInstaller().findCached(platform.getId(), cacheRoot);
+                if (cached != null) {
+                    return AutomaticRuntimeResult
+                        .ready(null, host, cached, JavaLaunchSelection.bundled(cached), forceSettings);
+                }
+            } catch (IOException | RuntimeException exception) {
+                // The archive path below can still repair or replace the cache.
+            }
+
+            if (!"false".equalsIgnoreCase(value(properties, DETECT_INSTALLED_PROPERTY, "true"))) {
+                JavaLaunchSelection detected = InstalledJavaLocator.findCompatible(host);
+                if (detected != null) {
+                    return AutomaticRuntimeResult.readyDetected(host, detected, forceSettings);
+                }
+            }
         }
 
         RuntimeBundleLocator.Result source;

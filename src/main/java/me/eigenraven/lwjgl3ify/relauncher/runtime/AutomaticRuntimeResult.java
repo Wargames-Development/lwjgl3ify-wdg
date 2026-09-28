@@ -47,6 +47,19 @@ public final class AutomaticRuntimeResult {
             forceSettings);
     }
 
+    static AutomaticRuntimeResult readyDetected(RuntimeHost host, JavaLaunchSelection selection,
+        boolean forceSettings) {
+        return new AutomaticRuntimeResult(
+            Status.READY,
+            "Compatible installed Java 21 ready at " + selection.getConsoleExecutable(),
+            null,
+            null,
+            host,
+            null,
+            selection,
+            forceSettings);
+    }
+
     static AutomaticRuntimeResult disabled(String message, boolean forceSettings) {
         return new AutomaticRuntimeResult(Status.DISABLED, message, null, null, null, null, null, forceSettings);
     }

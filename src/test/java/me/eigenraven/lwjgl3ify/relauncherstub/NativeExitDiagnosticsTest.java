@@ -22,4 +22,14 @@ public class NativeExitDiagnosticsTest {
             NativeExitDiagnostics.describe(134)
                 .contains("SIGABRT"));
     }
+
+    @Test
+    public void leavesUnknownExitUnclassified() {
+        assertTrue(
+            NativeExitDiagnostics.describe(-805306369)
+                .contains("0xCFFFFFFF"));
+        assertTrue(
+            NativeExitDiagnostics.describe(-805306369)
+                .contains("cause undetermined"));
+    }
 }

@@ -39,6 +39,19 @@ public final class RuntimeInstaller {
         this.configuredManifest = null;
     }
 
+    /** Reuse a completed, validated installation without requiring its original archive. */
+    public RuntimeInstallResult findCached(String platformId, Path cacheRoot)
+        throws IOException, RuntimeInstallationException {
+        final RuntimeManifest manifest = configuredManifest == null ? RuntimeManifest.loadCanonical()
+            : configuredManifest;
+        final RuntimePlatform platform = manifest.getPlatform(platformId);
+        final Path root = cacheRoot.toAbsolutePath()
+            .normalize();
+        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)) return null;
+        final RuntimeCacheLayout layout = new RuntimeCacheLayout(root.toRealPath(), manifest, platform);
+        return validateInstallation(layout.getInstallationRoot(), manifest, platform, false);
+    }
+
     RuntimeInstaller(RuntimeManifest manifest) {
         this.configuredManifest = manifest;
     }

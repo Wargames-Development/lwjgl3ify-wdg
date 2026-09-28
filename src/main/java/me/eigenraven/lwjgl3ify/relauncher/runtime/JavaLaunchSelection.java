@@ -9,6 +9,7 @@ public final class JavaLaunchSelection {
 
     public enum Source {
         BUNDLED,
+        DETECTED,
         MANUAL,
         SYSTEM_FALLBACK
     }
@@ -83,6 +84,21 @@ public final class JavaLaunchSelection {
             null,
             null,
             null);
+    }
+
+    public static JavaLaunchSelection detected(Path executable, boolean windows) throws RuntimeInstallationException {
+        JavaLaunchSelection manual = manual(executable, windows);
+        return new JavaLaunchSelection(
+            Source.DETECTED,
+            manual.consoleExecutable,
+            manual.guiExecutable,
+            executable.toAbsolutePath()
+                .normalize()
+                .getParent()
+                .getParent(),
+            null,
+            null,
+            "21");
     }
 
     public static JavaLaunchSelection systemFallback(boolean windows) {

@@ -68,6 +68,7 @@ public class AutomaticRuntimeCoordinatorTest {
         Map<String, String> properties = new HashMap<String, String>();
         properties.put("os.name", "Mac OS X");
         properties.put("os.arch", "aarch64");
+        properties.put(AutomaticRuntimeCoordinator.DETECT_INSTALLED_PROPERTY, "false");
 
         RelauncherConfig.ConfigObject config = new RelauncherConfig.ConfigObject();
         config.javaInstallationsCache = new String[] { "/manual/java", "/another/java" };
@@ -197,6 +198,7 @@ public class AutomaticRuntimeCoordinatorTest {
         Map<String, String> values = new HashMap<String, String>();
         values.put("os.name", osName);
         values.put("os.arch", osArch);
+        values.put(AutomaticRuntimeCoordinator.DETECT_INSTALLED_PROPERTY, "false");
         return values;
     }
 

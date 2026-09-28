@@ -36,6 +36,7 @@ public final class AutomaticRuntimeSmokeMain {
         Map<String, String> properties = new HashMap<String, String>();
         properties.put("os.name", System.getProperty("os.name"));
         properties.put("os.arch", System.getProperty("os.arch"));
+        properties.put(AutomaticRuntimeCoordinator.DETECT_INSTALLED_PROPERTY, "false");
         AutomaticRuntimeCoordinator coordinator = new AutomaticRuntimeCoordinator();
 
         AutomaticRuntimeResult first = coordinator.prepare(gameDirectory, cacheRoot, true, properties, System.getenv());

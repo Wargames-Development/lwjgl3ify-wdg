@@ -30,7 +30,7 @@ final class NativeExitDiagnostics {
         if (exitCode == 134) {
             return "134 (native abort/SIGABRT; inspect hs_err_pid*.log when present)";
         }
-        return exitCode < 0 ? exitCode + " / " + hex + " (unrecognised Windows native status)"
+        return exitCode < 0 ? exitCode + " / " + hex + " (unclassified process exit; cause undetermined)"
             : Integer.toString(exitCode);
     }
 
@@ -68,11 +68,13 @@ final class NativeExitDiagnostics {
         if (fatalErrorLog != null) {
             message.append("\n\nJVM fatal-error report:\n")
                 .append(fatalErrorLog);
-        } else if (Integer.toUnsignedLong(exitCode) == 0xC000041DL) {
-            message.append("\n\nNo hs_err_pid log was found. For this Windows status, also collect the latest ")
-                .append("Event Viewer > Windows Logs > Application entry for java.exe/javaw.exe, including the ")
-                .append("faulting module and exception code.");
-        }
+        } else if (exitCode < 0 && System.getProperty("os.name", "")
+            .toLowerCase(java.util.Locale.ROOT)
+            .contains("windows")) {
+                message.append("\n\nNo hs_err_pid log was found. To identify this exit, collect the matching ")
+                    .append("Event Viewer > Windows Logs > Application entry for java.exe/javaw.exe, including the ")
+                    .append("faulting module and exception code.");
+            }
         return message.toString();
     }
 
