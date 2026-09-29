@@ -54,6 +54,9 @@ public enum Mixins implements IMixins {
     XAEROS_WORLDMAP_SCROLL(Phase.LATE, new MixinBuilder()
         .addClientMixins("xaeros.XaerosWorldmapScrolling")
         .addRequiredMod(TargetedMod.XAEROS_WORLDMAP)),
+    GLIBYS_VOICECHAT_JAVA21_STOP(Phase.LATE, new MixinBuilder()
+        .addClientMixins("voicechat.GlibysVoiceClientStop")
+        .addRequiredMod(TargetedMod.GLIBYS_VOICECHAT)),
     OPENCOMPUTERS_KEYBOARD_INPUT_FIX(Phase.EARLY, new MixinBuilder()
         .addClientMixins("oc.OcInputBuffer")
         .addRequiredMod(TargetedMod.OPENCOMPUTERS)),
