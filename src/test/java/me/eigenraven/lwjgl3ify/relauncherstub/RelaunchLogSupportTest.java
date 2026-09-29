@@ -33,4 +33,20 @@ public class RelaunchLogSupportTest {
         assertTrue(Files.isRegularFile(log.resolveSibling(log.getFileName() + ".1")));
         assertEquals("new log after rotation\n", new String(Files.readAllBytes(log), StandardCharsets.UTF_8));
     }
+
+    @Test
+    public void consecutiveLaunchesGetSeparateLogs() throws Exception {
+        Path log = temporary.getRoot()
+            .toPath()
+            .resolve("logs/lwjgl3ify-java21-child.log");
+        RelaunchLogSupport.startSession(log);
+        RelaunchLogSupport.append(log, "first launch");
+        RelaunchLogSupport.startSession(log);
+        RelaunchLogSupport.append(log, "second launch");
+
+        assertEquals("second launch\n", new String(Files.readAllBytes(log), StandardCharsets.UTF_8));
+        assertEquals(
+            "first launch\n",
+            new String(Files.readAllBytes(log.resolveSibling(log.getFileName() + ".1")), StandardCharsets.UTF_8));
+    }
 }

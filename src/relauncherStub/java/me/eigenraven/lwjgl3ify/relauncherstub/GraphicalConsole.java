@@ -55,47 +55,34 @@ public class GraphicalConsole {
 
         @Override
         public void run() {
-            while (true) {
-                try {
-                    final String line = reader.readLine();
-                    if (line == null) {
-                        // EOF
-                        break;
-                    }
-                    invokeOnSwingThread(false, () -> {
-                        while (!consoleBuffer.isEmpty()) {
-                            final String bufferedLine = consoleBuffer.remove();
-                            try {
-                                guiLog.getDocument()
-                                    .insertString(
-                                        guiLog.getDocument()
-                                            .getLength(),
-                                        bufferedLine + LINE_SEPARATOR,
-                                        null);
-                            } catch (BadLocationException e) {
-                                // ignored
-                            }
-                        }
-                    });
-                    final long currLogSize = logSize.addAndGet(line.length() + 1);
-                    if (currLogSize > MAX_LOG_SIZE) {
-                        final boolean prevExceeded = logSizeExceededMax.getAndSet(true);
-                        if (!prevExceeded) {
-                            consoleBuffer.add("Max console size exceeded, > " + MAX_LOG_SIZE + " bytes!");
-                        }
-                        return;
-                    }
+            try {
+                CappedLineReader.drain(reader, MAX_LOG_SIZE, logSize, logSizeExceededMax, line -> {
                     writeLogLine(line);
                     consoleBuffer.add(line);
-                } catch (IOException e) {
-                    break;
+                    flushToGui();
+                }, () -> {
+                    consoleBuffer.add("Max console size exceeded, > " + MAX_LOG_SIZE + " bytes!");
+                    flushToGui();
+                });
+            } catch (IOException ignored) {
+                // A closed child stream ends this adapter.
+            }
+        }
+
+        private void flushToGui() {
+            invokeOnSwingThread(false, () -> {
+                while (!consoleBuffer.isEmpty()) {
+                    final String bufferedLine = consoleBuffer.remove();
+                    try {
+                        guiLog.getDocument()
+                            .insertString(
+                                guiLog.getDocument()
+                                    .getLength(),
+                                bufferedLine + LINE_SEPARATOR,
+                                null);
+                    } catch (BadLocationException ignored) {}
                 }
-            }
-            try {
-                reader.close();
-            } catch (IOException e) {
-                // ignored
-            }
+            });
         }
     }
 

@@ -16,6 +16,18 @@ final class RelaunchLogSupport {
 
     private RelaunchLogSupport() {}
 
+    /** Give each managed launch its own log while retaining the previous three launches. */
+    static Path startSession(Path logFile) throws IOException {
+        Path normalized = logFile.toAbsolutePath()
+            .normalize();
+        Path parent = normalized.getParent();
+        if (parent == null) throw new IOException("Relaunch log path lacks a parent directory");
+        Files.createDirectories(parent);
+        if (Files.exists(normalized) && Files.size(normalized) > 0) rotate(normalized);
+        if (!Files.exists(normalized)) Files.createFile(normalized);
+        return normalized;
+    }
+
     static Path prepare(Path logFile) throws IOException {
         Path normalized = logFile.toAbsolutePath()
             .normalize();

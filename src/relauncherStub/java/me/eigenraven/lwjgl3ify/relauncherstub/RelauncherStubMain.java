@@ -28,7 +28,7 @@ public class RelauncherStubMain {
         final boolean showConsole = Boolean.parseBoolean(args[1]);
         final String javaBinary = args[2];
         final String javaArgFile = args[3];
-        final Path childLog = RelaunchLogSupport.prepare(Paths.get(args[4]));
+        final Path childLog = RelaunchLogSupport.startSession(Paths.get(args[4]));
         final String[] javaCmdline = new String[] { javaBinary, "@" + javaArgFile };
         final ProcessHandle myProcess = ProcessHandle.current();
         final ProcessHandle parentProcess = ProcessHandle.of(parentPid)
