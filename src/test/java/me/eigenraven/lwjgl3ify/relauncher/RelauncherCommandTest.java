@@ -26,6 +26,24 @@ public class RelauncherCommandTest {
     public final TemporaryFolder temporary = new TemporaryFolder();
 
     @Test
+    public void directsFatalJVMReportsToTheGameLogsAndRespectsAnOverride() {
+        Path report = temporary.getRoot()
+            .toPath()
+            .resolve("game with spaces/logs/lwjgl3ify-hs_err_pid%p.log");
+        List<String> command = new ArrayList<String>();
+        Relauncher.appendFatalErrorFileArgument(command, report);
+        assertEquals(1, command.size());
+        assertEquals("-XX:ErrorFile=" + report, command.get(0));
+
+        Relauncher.appendFatalErrorFileArgument(command, report);
+        assertEquals(1, command.size());
+        command.set(0, "-XX:ErrorFile=/custom/hs_err_pid%p.log");
+        Relauncher.appendFatalErrorFileArgument(command, report);
+        assertEquals("-XX:ErrorFile=/custom/hs_err_pid%p.log", command.get(0));
+        assertEquals(1, command.size());
+    }
+
+    @Test
     public void configuredArgumentsPreserveMemoryGcCustomAndMacFirstThread() {
         RelauncherConfig.ConfigObject config = new RelauncherConfig.ConfigObject();
         config.memoryMode = RelauncherConfig.MemoryMode.CUSTOM;

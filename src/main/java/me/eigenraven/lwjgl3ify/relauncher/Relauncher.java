@@ -49,6 +49,7 @@ public class Relauncher {
     static final String RUNTIME_CACHE_ROOT_PROPERTY = "lwjgl3ify.relauncher.runtimeCacheRoot";
     static final String SHOW_CONSOLE_PROPERTY = "lwjgl3ify.wdg.showConsole";
     static final String CHILD_LOG_RELATIVE_PATH = "logs/lwjgl3ify-java21-child.log";
+    static final String FATAL_ERROR_LOG_RELATIVE_PATH = "logs/lwjgl3ify-hs_err_pid%p.log";
     static final String ADDITIONAL_CLASSPATH_PROPERTY = "lwjgl3ify.relauncher.additionalClasspath";
     static final String ADDITIONAL_TWEAKERS_PROPERTY = "lwjgl3ify.relauncher.additionalTweakers";
     static final String SUPERVISED_LAUNCH_PROPERTY = "lwjgl3ify.relauncher.supervisedLaunch";
@@ -358,6 +359,11 @@ public class Relauncher {
             childClasspath,
             supervisedLaunch,
             parentJvmArguments);
+        final Path fatalErrorLog = gameDirectory.resolve(FATAL_ERROR_LOG_RELATIVE_PATH)
+            .toAbsolutePath()
+            .normalize();
+        Files.createDirectories(fatalErrorLog.getParent());
+        appendFatalErrorFileArgument(cmd, fatalErrorLog);
         cmd.add(supervisedLaunch ? SUPERVISED_CLIENT_MAIN : STANDARD_CLIENT_MAIN);
         cmd.addAll(
             Arrays.asList(
@@ -574,6 +580,13 @@ public class Relauncher {
         command.addAll(Arrays.asList(RECOMMENDED_JAVA_ARGS));
         if (macos) command.add("-XstartOnFirstThread");
         command.addAll(config.toJvmArgs(parentJvmArguments));
+    }
+
+    static void appendFatalErrorFileArgument(List<String> command, Path fatalErrorLog) {
+        for (String argument : command) {
+            if (argument.startsWith("-XX:ErrorFile=")) return;
+        }
+        command.add("-XX:ErrorFile=" + fatalErrorLog);
     }
 
     public static void appendManagedRuntimeProperties(List<String> command, JavaLaunchSelection launchSelection) {

@@ -49,6 +49,7 @@ public class RelauncherStubMain {
 
         final ProcessBuilder childBuilder = new ProcessBuilder(javaCmdline);
         final Process child;
+        final long childLaunchMillis = System.currentTimeMillis();
         RelaunchLogSupport.append(
             childLog,
             "[lwjgl3ify-wdg] launching managed Java child; graphicalConsole=" + showConsole
@@ -74,7 +75,7 @@ public class RelauncherStubMain {
         System.out.println("Relaunched Java child exited with " + exitDescription);
         if (exitCode != 0 && !showConsole) {
             showFailure(
-                NativeExitDiagnostics.buildFailureMessage(exitCode, childLog),
+                NativeExitDiagnostics.buildFailureMessage(exitCode, childLog, child.pid(), childLaunchMillis),
                 "lwjgl3ify managed Java failure");
         }
         return exitCode;

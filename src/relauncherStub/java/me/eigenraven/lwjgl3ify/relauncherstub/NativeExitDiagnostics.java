@@ -1,7 +1,6 @@
 package me.eigenraven.lwjgl3ify.relauncherstub;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,7 +55,7 @@ final class NativeExitDiagnostics {
         return heapArguments.isEmpty() ? "none" : String.join(" ", heapArguments);
     }
 
-    static String buildFailureMessage(int exitCode, Path childLog) {
+    static String buildFailureMessage(int exitCode, Path childLog, long childPid, long childLaunchMillis) {
         final StringBuilder message = new StringBuilder();
         message.append("The managed Java game process exited with ")
             .append(describe(exitCode))
@@ -64,7 +63,7 @@ final class NativeExitDiagnostics {
             .append(childLog);
 
         final Path gameDirectory = inferGameDirectory(childLog);
-        final Path fatalErrorLog = findNewest(gameDirectory, "hs_err_pid*.log");
+        final Path fatalErrorLog = findFatalErrorLog(gameDirectory, childLog, childPid, childLaunchMillis);
         if (fatalErrorLog != null) {
             message.append("\n\nJVM fatal-error report:\n")
                 .append(fatalErrorLog);
@@ -86,22 +85,25 @@ final class NativeExitDiagnostics {
         return logsDirectory == null ? null : logsDirectory.getParent();
     }
 
-    private static Path findNewest(Path directory, String glob) {
-        if (directory == null || !Files.isDirectory(directory)) return null;
-        Path newest = null;
-        long newestTime = Long.MIN_VALUE;
-        try (DirectoryStream<Path> entries = Files.newDirectoryStream(directory, glob)) {
-            for (final Path entry : entries) {
-                if (!Files.isRegularFile(entry)) continue;
-                final long modified = Files.getLastModifiedTime(entry)
-                    .toMillis();
-                if (newest == null || modified > newestTime) {
-                    newest = entry.toAbsolutePath()
-                        .normalize();
-                    newestTime = modified;
-                }
-            }
-        } catch (IOException ignored) {}
-        return newest;
+    private static Path findFatalErrorLog(Path gameDirectory, Path childLog, long childPid, long childLaunchMillis) {
+        if (gameDirectory == null || childLog == null || childPid <= 0) return null;
+        final String reportName = "lwjgl3ify-hs_err_pid" + childPid + ".log";
+        final Path configured = childLog.toAbsolutePath()
+            .normalize()
+            .resolveSibling(reportName);
+        if (isCurrentReport(configured, childLaunchMillis)) return configured;
+        final Path defaultReport = gameDirectory.resolve("hs_err_pid" + childPid + ".log");
+        return isCurrentReport(defaultReport, childLaunchMillis) ? defaultReport.toAbsolutePath()
+            .normalize() : null;
+    }
+
+    private static boolean isCurrentReport(Path report, long childLaunchMillis) {
+        if (!Files.isRegularFile(report)) return false;
+        try {
+            return Files.getLastModifiedTime(report)
+                .toMillis() >= childLaunchMillis - 2000L;
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 }
